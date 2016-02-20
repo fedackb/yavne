@@ -21,7 +21,7 @@ import bpy
 
 class YAVNEPanel(bpy.types.Panel):
     bl_category = 'Shading / UVs'
-    bl_idname = 'VIEW3D_PT_bnormal'
+    bl_idname = 'VIEW3D_PT_yavne'
     bl_label = 'Y.A.V.N.E.'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
