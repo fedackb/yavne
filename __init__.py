@@ -17,7 +17,7 @@
 
 
 bl_info = {
-    'name' : 'YAVNE',
+    'name' : 'Y.A.V.N.E.',
     'description' : 'Yet another vertex normal editor',
     'location' : '3D View > Tool Shelf > Shading/UVs',
     'author' : 'Brett Fedack',
