@@ -30,7 +30,7 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
         ),
         default = 'ANGLE',
         items = [
-            ('UNIFORM', 'Uniform', 'Face normals are averaged uniformly.', '', -1),
+            ('UNIFORM', 'Uniform', 'Face normals are averaged evenly.', '', -1),
             ('ANGLE', 'Corner Angle', 'Face normals are averaged according to the corner angle of a shared vertex in each face. This is the smooth shading approach used by Blender.', '', 0),
             ('AREA', 'Face Area', 'Face normals are averaged according to the area of each face.', '', 1),
             ('COMBINED', 'Combined', 'Face normals are averaged according to both corner angle and face area.', '', 2),
