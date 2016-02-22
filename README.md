@@ -18,7 +18,7 @@ The weight types of vertices determine how each vertex normal is calculated as t
 * **Corner Angle** - Face normals are averaged according to the corner angle of a shared vertex in each face. This is the smooth shading approach used by Blender.
 * **Face Area** - Face normals are averaged according to the area of each face.
 * **Combined** - Face normals are averaged according to both corner angle and face area.
-* **Fixed** - Face normals are not averaged; vertex normals are static.
+* **Unweighted** - Face normals are not averaged; vertex normals are static.
 
 ![weight_comparison](https://cloud.githubusercontent.com/assets/8960984/13204443/5f340a38-d88d-11e5-9134-ad9f6588b7c5.png)
 
