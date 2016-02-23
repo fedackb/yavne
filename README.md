@@ -22,7 +22,7 @@ Vertex weight types determine how each vertex normal is calculated as the weight
 
 ![weight_comparison](https://cloud.githubusercontent.com/assets/8960984/13204443/5f340a38-d88d-11e5-9134-ad9f6588b7c5.png)
 
-Each vertex has exactly one weight type. For quick-and-easy shading improvements, it may be sufficient to assign the **Combined** weight type to all vertices of a mesh. It may be necessary, however, to use a variety of weight types in order to optimize shading.
+Each vertex has exactly one weight type. For quick-and-easy shading, it may be sufficient to assign the **Combined** weight type to all vertices of a mesh. However, thoughtful use of a variety of weight types often yields better results.
 
 ### **Face Normal Influence** ###
 
