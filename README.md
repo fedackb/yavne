@@ -12,7 +12,7 @@ Y.A.V.N.E. is available within the **3D View > Tool Shelf > Shading/UVs** tab fo
 
 ### **Vertex Normal Weight** ###
 
-The weight types of vertices determine how each vertex normal is calculated as the weighted average of adjacent faces normals. Y.A.V.N.E. provides several weighting options:
+Vertex weight types determine how each vertex normal is calculated as the weighted average of adjacent face normals. Y.A.V.N.E. provides several weighting options:
 
 * **Uniform** - Faces normals are averaged evenly.
 * **Corner Angle** - Face normals are averaged according to the corner angle of a shared vertex in each face. This is the smooth shading approach used by Blender.
@@ -22,11 +22,11 @@ The weight types of vertices determine how each vertex normal is calculated as t
 
 ![weight_comparison](https://cloud.githubusercontent.com/assets/8960984/13204443/5f340a38-d88d-11e5-9134-ad9f6588b7c5.png)
 
-Each vertex has exactly one weight type. A mesh can be composed of vertices with different weight types. For quick-and-easy shading improvements, it is often sufficient to assign the **Combined** weight type to all vertices of a mesh.
+Each vertex has exactly one weight type. For quick-and-easy shading improvements, it may be sufficient to assign the **Combined** weight type to all vertices of a mesh. It may be necessary, however, to use a variety of weight types in order to optimize shading.
 
 ### **Face Normal Influence** ###
 
-The influence types of faces determine which face normals are considered for calculating vertex normals. When a vertex is shared by both **Strong** and **Weak** faces, only the normals of **Strong** faces contribute to the resulting vertex normal.
+Face influence types determine which face normals are considered when calculating vertex normals. In the case that a vertex is shared by both **Strong** and **Weak** faces, only the normals of **Strong** faces contribute to the resulting vertex normal.
 
 ![weak_influence](https://cloud.githubusercontent.com/assets/8960984/13209691/3e6445f0-d8e4-11e5-9e58-ca7ceed7ea2f.png)
 
