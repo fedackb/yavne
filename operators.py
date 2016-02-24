@@ -242,7 +242,7 @@ class ManageFaceNormalInfluence(YAVNEBase):
 
 
 class PickShadingSource(YAVNEBase):
-    bl_idname = 'view_3d.yavne_pick_shading_source'
+    bl_idname = 'view3d.yavne_pick_shading_source'
     bl_label = 'Pick Shading Source'
     bl_description = 'Pick object from which to transfer interpolated normals.'
     bl_options = set()

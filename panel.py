@@ -145,7 +145,7 @@ class YAVNEPanel(bpy.types.Panel):
             addon_props, 'source', addon_props, 'available_sources', text = '',
             icon = 'OBJECT_DATA'
         )
-        row.operator('view_3d.yavne_pick_shading_source', text = '', icon = 'EYEDROPPER')
+        row.operator('view3d.yavne_pick_shading_source', text = '', icon = 'EYEDROPPER')
         col.operator('mesh.yavne_transfer_shading')
 
     def draw_update_vertex_normals_ui(self, context, layout):
