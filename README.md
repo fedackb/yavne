@@ -18,7 +18,7 @@ Vertex weight types determine how each vertex normal is calculated as the weight
 * **Corner Angle** - Face normals are averaged according to the corner angle of a shared vertex in each face. This is the smooth shading approach used by Blender.
 * **Face Area** - Face normals are averaged according to the area of each face.
 * **Combined** - Face normals are averaged according to both corner angle and face area.
-* **Unweighted** - Face normals are not averaged; vertex normals are static.
+* **Unweighted** - Face normals are not averaged; vertex normals are static. Certain operations, such as 'Set' and 'Transfer Normals', result in unweighted vertices.
 
 ![weight_comparison](https://cloud.githubusercontent.com/assets/8960984/13204443/5f340a38-d88d-11e5-9134-ad9f6588b7c5.png)
 
@@ -49,6 +49,6 @@ Basic manual editing of vertex normals is possible with the **Get** and **Set** 
 
 Interpolated normals can be transferred from a source mesh to the nearest selected vertices of the active, target mesh.
 
-One scenario in which this tool might be useful is when a user wants to add detail to curved sections of a mesh. Cutting faces creates undesirable shading artifacts. By transferring shading from the original mesh, it is possible to correct such imperfections and achieve the desired result.
+One scenario in which this tool might be useful is when a user wants to add detail along curved sections of a mesh. Cutting faces creates undesirable shading artifacts. By transferring shading from the original mesh, it is possible to correct such imperfections and achieve the desired result.
 
 ![transfer_shading](https://cloud.githubusercontent.com/assets/8960984/13205760/bf1b57d4-d8ac-11e5-9343-95043048170a.png)
