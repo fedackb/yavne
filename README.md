@@ -52,3 +52,13 @@ Interpolated normals can be transferred from a source mesh to the nearest select
 One scenario in which this tool might be useful is when a user wants to add detail along curved sections of a mesh. Cutting faces creates undesirable shading artifacts. By transferring shading from the original mesh, it is possible to correct such imperfections and achieve the desired result.
 
 ![transfer_shading](https://cloud.githubusercontent.com/assets/8960984/13205760/bf1b57d4-d8ac-11e5-9343-95043048170a.png)
+
+### **Version History** ###
+
+1.1.0
+
+* Adapted code to be compatible with changes to "Object.ray_cast" interface
+
+1.0.0
+
+* Initial release

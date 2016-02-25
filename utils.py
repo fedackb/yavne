@@ -16,6 +16,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
+import bpy
 import sys
 import bmesh
 from bpy_extras.view3d_utils import (
@@ -134,6 +135,8 @@ def pick_object(region, rv3d, x, y, near, far, objects):
             normal (Vector): Normal vector of intersected face
             index (int): Index of intersected face
     '''
+    blender_version = bpy.app.version
+
     # Determine ray extents.
     coord = Vector((x, y))
     ray_dir = region_2d_to_vector_3d(region, rv3d, coord)
@@ -154,10 +157,14 @@ def pick_object(region, rv3d, x, y, near, far, objects):
 
         # Cast ray in object space.
         inverse_model_matrix = obj.matrix_world.inverted()
-        location, normal, index =  obj.ray_cast(
+        hit =  obj.ray_cast(
             inverse_model_matrix * ray_start,
             inverse_model_matrix * ray_end
-        )[0:3]
+        )
+        if blender_version < (2, 76, 9):
+            location, normal, index = hit
+        else:
+            location, normal, index = hit[1:]
 
         # Compare intersection distances.
         if index != -1:
