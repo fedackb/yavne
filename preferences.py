@@ -41,13 +41,14 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
     face_normal_influence = bpy.props.EnumProperty(
         name = 'Face Normal Influence',
         description = (
-            'Determines which face normals are taken into account when ' +
-            'calculating vertex normals'
+            'Determines which face normals participate in vertex normal ' +
+            'calculations'
         ),
-        default = 'STRONG',
+        default = 'MEDIUM',
         items = [
-            ('STRONG', 'Strong', 'Strong face normals are always taken into account when calculating vertex normals.', '', 0),
-            ('WEAK', 'Weak', 'Weak face normals are only taken into account when calculating the normal of a vertex that is not influenced by a strong face normal.', '', 1)
+            ('WEAK', 'Weak', 'Face normal participates only if a vertex is not influenced by either a medium or strong face.', '', -1),
+            ('MEDIUM', 'Medium', 'Face normal participates only if a vertex is not influenced by a strong face.', '', 0),
+            ('STRONG', 'Strong', 'Face normal always participates.', '', 1)
         ]
     )
 

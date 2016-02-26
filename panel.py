@@ -102,11 +102,11 @@ class YAVNEPanel(bpy.types.Panel):
 
         op = row.operator('mesh.yavne_manage_face_normal_influence', text = '', icon = 'FACESEL')
         op.action = 'GET'
-        op.influence = addon_props.face_normal_influence
+        op.type = addon_props.face_normal_influence
 
         op = row.operator('mesh.yavne_manage_face_normal_influence', text = '', icon = 'ZOOMIN')
         op.action = 'SET'
-        op.influence = addon_props.face_normal_influence
+        op.type = addon_props.face_normal_influence
         op.update = True
 
     def draw_edit_vertex_normals_ui(self, context, layout):

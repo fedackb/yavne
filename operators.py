@@ -38,7 +38,7 @@ class YAVNEBase(bpy.types.Operator):
         'UNWEIGHTED': 3
     }
 
-    face_influence_map = {'STRONG': 0, 'WEAK': 1}
+    face_influence_map = {'WEAK': -1, 'MEDIUM': 0, 'STRONG': 1}
 
     @classmethod
     def poll(cls, context):
@@ -192,13 +192,17 @@ class ManageFaceNormalInfluence(YAVNEBase):
         ]
     )
 
-    influence = bpy.props.EnumProperty(
+    type = bpy.props.EnumProperty(
         name = 'Face Normal Influence',
-        description = 'Classification that determine which face normals are taken into account when calculating vertex normals',
-        default = 'STRONG',
+        description = (
+            'Determines which face normals participate in vertex normal ' +
+            'calculations'
+        ),
+        default = 'MEDIUM',
         items = [
-            ('STRONG', 'Strong', 'Strong face normals are always taken into account when calculating vertex normals.', '', 0),
-            ('WEAK', 'Weak', 'Weak face normals are only taken into account when calculating the normal of a vertex that is not influenced by a strong face normal.', '', 1)
+            ('WEAK', 'Weak', 'Face normal participates only if a vertex is not influenced by either a medium or strong face.', '', -1),
+            ('MEDIUM', 'Medium', 'Face normal participates only if a vertex is not influenced by a strong face.', '', 0),
+            ('STRONG', 'Strong', 'Face normal always participates.', '', 1)
         ]
     )
 
@@ -214,7 +218,7 @@ class ManageFaceNormalInfluence(YAVNEBase):
         face_normal_influence_layer = bm.faces.layers.int['face-normal-influence']
 
         # Determine enumerated face normal influence value.
-        face_normal_influence = self.face_influence_map[self.influence]
+        face_normal_influence = self.face_influence_map[self.type]
 
         # Select faces by given normal vector influence.
         if self.action == 'GET':
@@ -643,22 +647,18 @@ class UpdateVertexNormals(YAVNEBase):
             # Split vertex linked loops into shading groups.
             for loop_group in split_loops(v):
 
-                # Determine if vertex is influenced by a strong face normal.
-                vertex_is_influenced_by_strong_face_normal = 0 in [
+                # Determine which face type most influences this vertex.
+                influence_max = max([
                     loop.face[face_normal_influence_layer]
                     for loop in loop_group
-                ]
+                ])
 
-                # Ignore face normals of weak faces if at least one strong face
-                # is present.
-                if vertex_is_influenced_by_strong_face_normal:
-                    loop_subgroup = [
-                        loop
-                        for loop in loop_group
-                        if loop.face[face_normal_influence_layer] == 0
-                    ]
-                else:
-                    loop_subgroup = loop_group
+                # Ignore all but the most influential face normals.
+                loop_subgroup = [
+                    loop
+                    for loop in loop_group
+                    if loop.face[face_normal_influence_layer] == influence_max
+                ]
 
                 # Average face normals according to vertex normal weight.
                 n = Vector()
