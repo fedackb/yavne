@@ -49,6 +49,10 @@ class YAVNEPanel(bpy.types.Panel):
 
         layout.separator()
 
+        self.draw_merge_vertex_normals_ui(context, layout)
+
+        layout.separator()
+
         self.draw_transfer_shading_ui(context, layout)
 
         layout.separator()
@@ -119,6 +123,20 @@ class YAVNEPanel(bpy.types.Panel):
         row.operator('mesh.yavne_set_normal_vector', text = 'Set')
         col.prop(addon_props, 'normal_buffer', text = '')
 
+    def draw_merge_vertex_normals_ui(self, context, layout):
+        addon_props = self.addon_props
+
+        col = layout.column(align = True)
+        row = col.row(align = True)
+
+        op = row.operator('mesh.yavne_merge_vertex_normals', text = 'Merge')
+        op.distance = addon_props.merge_distance
+        op.unselected = addon_props.merge_unselected
+
+        row.prop(addon_props, 'merge_unselected', text = '', icon = 'ROTACTIVE')
+
+        col.prop(addon_props, 'merge_distance', text = 'Distance')
+
     def draw_transfer_shading_ui(self, context, layout):
         addon_props = self.addon_props
         obj_curr = context.active_object
@@ -139,6 +157,8 @@ class YAVNEPanel(bpy.types.Panel):
         ):
             addon_props.source = ''
 
+        col.operator('mesh.yavne_transfer_shading')
+
         row = col.row(align = True)
 
         row.prop_search(
@@ -146,7 +166,6 @@ class YAVNEPanel(bpy.types.Panel):
             icon = 'OBJECT_DATA'
         )
         row.operator('view3d.yavne_pick_shading_source', text = '', icon = 'EYEDROPPER')
-        col.operator('mesh.yavne_transfer_shading')
 
     def draw_update_vertex_normals_ui(self, context, layout):
         layout.operator('mesh.yavne_update_vertex_normals')

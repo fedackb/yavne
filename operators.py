@@ -548,6 +548,134 @@ class SetNormalVector(YAVNEBase):
         return {'FINISHED'}
 
 
+class MergeVertexNormals(YAVNEBase):
+    bl_idname = 'mesh.yavne_merge_vertex_normals'
+    bl_label = 'Merge Vertex Normals'
+    bl_description = (
+        'Merge selected vertex normals within given distance of each other.'
+    )
+    bl_options = {'REGISTER', 'UNDO'}
+
+    distance = bpy.props.FloatProperty(
+        name = 'Merge Distance',
+        description = 'Maximum allowed distance between merged vertex normals',
+        default = 0.0001,
+        min = 0.0
+    )
+
+    unselected = bpy.props.BoolProperty(
+        name = 'Unselected',
+        description = (
+            'Unselected vertex normals within given distance of selected ' +
+            'vertices are also merged.'
+        ),
+        default = False
+    )
+
+    @classmethod
+    def poll(cls, context):
+        # At least one vertex must be selected.
+        mesh = context.active_object.data
+        return (
+            super().poll(context) and
+            mesh.total_vert_sel > 0
+        )
+
+    def execute(self, context):
+        obj_curr = context.active_object
+        obj_curr.update_from_editmode()
+        mesh = obj_curr.data
+        bm = bmesh.from_edit_mesh(mesh)
+        vertex_normal_weight_layer = bm.verts.layers.int['vertex-normal-weight']
+        vertex_normal_x_layer = bm.verts.layers.float['vertex-normal-x']
+        vertex_normal_y_layer = bm.verts.layers.float['vertex-normal-y']
+        vertex_normal_z_layer = bm.verts.layers.float['vertex-normal-z']
+        merge_distance_squared = self.distance ** 2
+        unweighted_val = self.vertex_normal_weight_map['UNWEIGHTED']
+
+        # Organize vertices into discrete space.
+        cells = {}
+        selected_verts = set(v for v in bm.verts if v.select)
+        for v in (bm.verts if self.unselected else selected_verts):
+            v_co = v.co
+            x = v_co.x // self.distance
+            y = v_co.y // self.distance
+            z = v_co.z // self.distance
+
+            # Ensure that the cell exists.
+            if not x in cells:
+                cells[x] = {}
+            if not y in cells[x]:
+                cells[x][y] = {}
+            if not z in cells[x][y]:
+                cells[x][y][z] = []
+
+            # Add vertex reference to the cell.
+            cells[x][y][z].append(v)
+
+        # Merge vertex normals in the vicinity of each selected vertex.
+        mesh.calc_normals_split()
+        while selected_verts:
+            v_curr = selected_verts.pop()
+            v_curr_co = v_curr.co
+            v_curr_normal_count = len(set(
+                mesh.loops[loop.index].normal.to_tuple()
+                for loop in v_curr.link_loops
+            ))
+            x = v_curr_co.x // self.distance
+            y = v_curr_co.y // self.distance
+            z = v_curr_co.z // self.distance
+
+            # Search adjacent cells for vertices.
+            nearby_verts = []
+            for i in [x - 1, x, x + 1]:
+                for j in [y - 1, y, y + 1]:
+                    for k in [z - 1, z, z + 1]:
+
+                        # Add contents of current cell to search results.
+                        if i in cells and j in cells[i] and k in cells[i][j]:
+                            nearby_verts.extend(cells[i][j][k])
+
+            # Exclude vertices that are outside of given merge distance.
+            mergeable_verts = [
+                v
+                for v in nearby_verts
+                if (v.co - v_curr_co).length_squared <= merge_distance_squared
+            ]
+
+            # Calculate merged normal.
+            n = Vector()
+            for v in mergeable_verts:
+
+                # Average normals of current vertex.
+                n_curr = Vector()
+                for loop in v.link_loops:
+                    n_curr += mesh.loops[loop.index].normal
+                n_curr.normalize()
+
+                # Include current, averaged vertex normal in merged normal.
+                n += n_curr
+            n.normalize()
+
+            # Assign merged normal to all vertices within given merge distance.
+            if v_curr_normal_count > 1 or len(mergeable_verts) > 1:
+                for v in mergeable_verts:
+                    v[vertex_normal_weight_layer] = unweighted_val
+                    v[vertex_normal_x_layer] = n.x
+                    v[vertex_normal_y_layer] = n.y
+                    v[vertex_normal_z_layer] = n.z
+
+            # Indicate which selected vertices have been merged.
+            local_selection = [v for v in mergeable_verts if v.select]
+            selected_verts.difference_update(local_selection)
+
+        # Update the mesh.
+        bpy.ops.mesh.yavne_update_vertex_normals()
+        bmesh.update_edit_mesh(mesh)
+
+        return {'FINISHED'}
+
+
 class TransferShading(YAVNEBase):
     bl_idname = 'mesh.yavne_transfer_shading'
     bl_label = 'Transfer Shading'
@@ -605,7 +733,7 @@ class TransferShading(YAVNEBase):
         # Return to Edit mode.
         bpy.ops.object.mode_set(mode = 'EDIT')
 
-        # Lock transfered normals.
+        # Lock transferred normals.
         bpy.ops.mesh.yavne_manage_vertex_normal_weight(
             action = 'SET',
             type = 'UNWEIGHTED',

@@ -69,3 +69,22 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
         size = 3,
         subtype = 'XYZ'
     )
+
+    merge_distance = bpy.props.FloatProperty(
+        name = 'Merge Distance',
+        description = 'Maximum allowed distance between merged vertex normals',
+        default = 0.0001,
+        min = 0.0,
+        soft_max = 1.0,
+        step = 0.01,
+        precision = 4
+    )
+
+    merge_unselected = bpy.props.BoolProperty(
+        name = 'Unselected',
+        description = (
+            'Unselected vertex normals within given distance of selected ' +
+            'vertices are also merged.'
+        ),
+        default = False
+    )
