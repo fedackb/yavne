@@ -534,7 +534,7 @@ class SetNormalVector(YAVNEBase):
         vertex_normal_z_layer = bm.verts.layers.float['vertex-normal-z']
 
         # Assign stored world space normal vector to all selected vertices.
-        vertex_normal = obj_curr.matrix_world.inverted() * normal_buffer
+        vertex_normal = obj_curr.matrix_world.to_3x3().inverted() * normal_buffer
         for v in [v for v in bm.verts if v.select]:
             v[vertex_normal_weight_layer] = self.vertex_normal_weight_map['UNWEIGHTED']
             v[vertex_normal_x_layer] = vertex_normal.x
