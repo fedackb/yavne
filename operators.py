@@ -410,7 +410,7 @@ class GetNormalVector(YAVNEBase):
 
         # Gather world space normal vectors associated with selected vertex.
         normals = set(
-            (model_matrix * mesh.loops[loop.index].normal).to_tuple()
+            (model_matrix.to_3x3().normalized() * mesh.loops[loop.index].normal).to_tuple()
             for loop in selected_vert.link_loops
         )
         self.normals = list(normals)
