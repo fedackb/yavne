@@ -27,91 +27,60 @@ from bpy_extras.view3d_utils import (
 from mathutils import Vector
 
 
-class Node():
+def split_loops(vert, angle = math.pi):
     '''
-    Represents a node in an undirected graph
-
-    Attributes:
-        data: Information to store in this node
-        neighbors (set<Node>): Adjacent nodes to this one
-    '''
-    def __init__(self, data):
-        self.data = data
-        self.neighbors = set()
-
-    '''
-    Creates edges between this node and all given nodes
+    Splits vertex linked loops into groups based on edge properties
 
     Parameters:
-        *args: Argument list of Node objects
-    '''
-    def connect(self, *args):
-        for node in args:
-            self.neighbors.add(node)
-            node.neighbors.add(self)
-
-    '''
-    Determines which nodes are reachable from this one
+        vert (bmesh.types.BMVert): Common vertex shared by loops
+        angle (float): Face edge angle threshold in radians
 
     Returns:
-        set<Node>: Reachable nodes
+        list<list<bmesh.types.BMLoop>>: Grouped loops
     '''
-    def getReachable(self):
-        reachable = set()
-        traversal_stack = [self]
-        while len(traversal_stack) > 0:
-            node = traversal_stack.pop()
-            if node not in reachable:
-                reachable.add(node)
-                traversal_stack.extend(node.neighbors.difference(reachable))
-        return reachable
-
-
-def split_loops(vert):
-    '''
-    Splits vertex linked loops into groups based on face connectivity
-
-    Parameters:
-        vert (BVert): Common vertex shared by loops
-
-    Returns:
-        list<list<bpy.types.BMLoop>>: Grouped loops
-    '''
-    link_loop_nodes = set()
-    edge_map = {}
-
-    # Build a graph that describes the connectivity of linked loops.
-    for loop in vert.link_loops:
-
-        # Store loop information in a node.
-        loop_node = Node(loop)
-        link_loop_nodes.add(loop_node)
-
-        # Connect loops via shared soft edges.
-        for edge in [loop.edge, loop.link_loop_prev.edge]:
-            if edge.smooth:
-                if edge.index not in edge_map:
-                    edge_node = Node(edge)
-                    edge_map[edge.index] = edge_node
-                else:
-                    edge_node = edge_map[edge.index]
-                loop_node.connect(edge_node)
-
-    # Group loops according to node reachability.
     loop_groups = []
-    while link_loop_nodes:
-        loop_node = link_loop_nodes.pop()
 
-        # Exclude nodes that contain edge data.
-        reachable_loop_nodes = [
-            node
-            for node in loop_node.getReachable()
-            if type(node.data) is bmesh.types.BMLoop
-        ]
+    # Split vertex linked loops into groups.
+    link_loops = set(loop for loop in vert.link_loops)
+    while len(link_loops) > 0:
 
-        # Group reachable loops.
-        link_loop_nodes.difference_update(reachable_loop_nodes)
-        loop_groups.append([node.data for node in reachable_loop_nodes])
+        # Transfer a loop to a subgroup.
+        loop_subgroup = [link_loops.pop()]
+        loop_groups.append(loop_subgroup)
+
+        # Find grouped loops in the forward direction.
+        loop_curr = loop_subgroup[0]
+        loop_next = loop_subgroup[0].link_loop_radial_next.link_loop_next
+        while (
+            loop_next in link_loops and
+            loop_curr.edge.is_manifold and
+            loop_curr.edge.smooth and
+            loop_curr.edge.calc_face_angle() < angle
+        ):
+            # Transfer next loop to the subgroup.
+            link_loops.remove(loop_next)
+            loop_subgroup.append(loop_next)
+
+            # Advance to the next pair of loops.
+            loop_curr = loop_next
+            loop_next = loop_curr.link_loop_radial_next.link_loop_next
+
+        # Find grouped loops in the reverse direction.
+        loop_curr = loop_subgroup[0]
+        loop_prev = loop_subgroup[0].link_loop_prev.link_loop_radial_prev
+        while (
+            loop_prev in link_loops and
+            loop_prev.edge.is_manifold and
+            loop_prev.edge.smooth and
+            loop_prev.edge.calc_face_angle() < angle
+        ):
+            # Transfer previous loop to the subgroup.
+            link_loops.remove(loop_prev)
+            loop_subgroup.append(loop_prev)
+
+            # Retreat to the previous pair of loops.
+            loop_curr = loop_prev
+            loop_prev = loop_curr.link_loop_prev.link_loop_radial_prev
 
     return loop_groups
 
