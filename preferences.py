@@ -17,40 +17,15 @@
 
 
 import bpy
+from .types import FaceNormalInfluence, VertexNormalWeight
 
 
 class YAVNEPrefs(bpy.types.AddonPreferences):
     bl_idname = __package__.split('.')[0]
 
-    vertex_normal_weight = bpy.props.EnumProperty(
-        name = 'Vertex Normal Weight',
-        description = (
-            'Determines how each vertex normal is calculated as the ' +
-            'weighted average of adjacent face normals'
-        ),
-        default = 'ANGLE',
-        items = [
-            ('UNIFORM', 'Uniform', 'Face normals are averaged evenly.', '', -1),
-            ('ANGLE', 'Corner Angle', 'Face normals are averaged according to the corner angle of a shared vertex in each face. This is the smooth shading approach used by Blender.', '', 0),
-            ('AREA', 'Face Area', 'Face normals are averaged according to the area of each face.', '', 1),
-            ('COMBINED', 'Combined', 'Face normals are averaged according to both corner angle and face area.', '', 2),
-            ('UNWEIGHTED', 'Unweighted', 'Face normals are not averaged; vertex normals are fixed.', '', 3)
-        ]
-    )
+    vertex_normal_weight = VertexNormalWeight.create_property()
 
-    face_normal_influence = bpy.props.EnumProperty(
-        name = 'Face Normal Influence',
-        description = (
-            'Determines which face normals participate in vertex normal ' +
-            'calculations'
-        ),
-        default = 'MEDIUM',
-        items = [
-            ('WEAK', 'Weak', 'Face normal participates only if a vertex is not influenced by either a medium or strong face.', '', -1),
-            ('MEDIUM', 'Medium', 'Face normal participates only if a vertex is not influenced by a strong face.', '', 0),
-            ('STRONG', 'Strong', 'Face normal always participates.', '', 1)
-        ]
-    )
+    face_normal_influence = FaceNormalInfluence.create_property()
 
     source = bpy.props.StringProperty(
         name = 'Shading Source',

@@ -19,8 +19,9 @@
 import bgl
 import bmesh
 import bpy
-from .utils import Node, split_loops, pick_object
 from mathutils import Vector
+from .types import FaceNormalInfluence, VertexNormalWeight
+from .utils import Node, split_loops, pick_object
 
 
 class YAVNEBase(bpy.types.Operator):
@@ -29,16 +30,6 @@ class YAVNEBase(bpy.types.Operator):
     bl_options = {'INTERNAL'}
 
     addon_key = __package__.split('.')[0]
-
-    vertex_normal_weight_map = {
-        'UNIFORM': -1,
-        'ANGLE': 0,
-        'AREA': 1,
-        'COMBINED': 2,
-        'UNWEIGHTED': 3
-    }
-
-    face_influence_map = {'WEAK': -1, 'MEDIUM': 0, 'STRONG': 1}
 
     @classmethod
     def poll(cls, context):
@@ -101,21 +92,7 @@ class ManageVertexNormalWeight(YAVNEBase):
         ]
     )
 
-    type = bpy.props.EnumProperty(
-        name = 'Vertex Normal Weight',
-        description = (
-            'Determines how each vertex normal is calculated as the ' +
-            'weighted average of adjacent face normals'
-        ),
-        default = 'ANGLE',
-        items = [
-            ('UNIFORM', 'Uniform', 'Face normals are averaged evenly.', '', -1),
-            ('ANGLE', 'Corner Angle', 'Face normals are averaged according to the corner angle of a shared vertex in each face. This is the smoothing scheme used by Blender.', '', 0),
-            ('AREA', 'Face Area', 'Face normals are averaged according to the area of each face.', '', 1),
-            ('COMBINED', 'Combined', 'Face normals are averaged according to both corner angle and face area.', '', 2),
-            ('UNWEIGHTED', 'Unweighted', 'Face normals are not averaged; vertex normals are fixed.', '', 3)
-        ]
-    )
+    type = VertexNormalWeight.create_property()
 
     update = bpy.props.BoolProperty(
         name = 'Update Vertex Normals',
@@ -134,7 +111,7 @@ class ManageVertexNormalWeight(YAVNEBase):
         vertex_normal_z_layer = bm.verts.layers.float['vertex-normal-z']
 
         # Determine enumerated vertex normal weight value.
-        vertex_normal_weight = self.vertex_normal_weight_map[self.type]
+        vertex_normal_weight = VertexNormalWeight[self.type].value
 
         # Select vertices by given vertex normal weight.
         if self.action == 'GET':
@@ -192,19 +169,7 @@ class ManageFaceNormalInfluence(YAVNEBase):
         ]
     )
 
-    type = bpy.props.EnumProperty(
-        name = 'Face Normal Influence',
-        description = (
-            'Determines which face normals participate in vertex normal ' +
-            'calculations'
-        ),
-        default = 'MEDIUM',
-        items = [
-            ('WEAK', 'Weak', 'Face normal participates only if a vertex is not influenced by either a medium or strong face.', '', -1),
-            ('MEDIUM', 'Medium', 'Face normal participates only if a vertex is not influenced by a strong face.', '', 0),
-            ('STRONG', 'Strong', 'Face normal always participates.', '', 1)
-        ]
-    )
+    type = FaceNormalInfluence.create_property()
 
     update = bpy.props.BoolProperty(
         name = 'Update Vertex Normals',
@@ -218,7 +183,7 @@ class ManageFaceNormalInfluence(YAVNEBase):
         face_normal_influence_layer = bm.faces.layers.int['face-normal-influence']
 
         # Determine enumerated face normal influence value.
-        face_normal_influence = self.face_influence_map[self.type]
+        face_normal_influence = FaceNormalInfluence[self.type].value
 
         # Select faces by given normal vector influence.
         if self.action == 'GET':
@@ -536,7 +501,7 @@ class SetNormalVector(YAVNEBase):
         # Assign stored world space normal vector to all selected vertices.
         vertex_normal = obj_curr.matrix_world.inverted() * normal_buffer
         for v in [v for v in bm.verts if v.select]:
-            v[vertex_normal_weight_layer] = self.vertex_normal_weight_map['UNWEIGHTED']
+            v[vertex_normal_weight_layer] = VertexNormalWeight.UNWEIGHTED.value
             v[vertex_normal_x_layer] = vertex_normal.x
             v[vertex_normal_y_layer] = vertex_normal.y
             v[vertex_normal_z_layer] = vertex_normal.z
@@ -591,7 +556,6 @@ class MergeVertexNormals(YAVNEBase):
         vertex_normal_y_layer = bm.verts.layers.float['vertex-normal-y']
         vertex_normal_z_layer = bm.verts.layers.float['vertex-normal-z']
         merge_distance_squared = self.distance ** 2
-        unweighted_val = self.vertex_normal_weight_map['UNWEIGHTED']
 
         # Organize vertices into discrete space.
         cells = {}
@@ -660,7 +624,7 @@ class MergeVertexNormals(YAVNEBase):
             # Assign merged normal to all vertices within given merge distance.
             if v_curr_normal_count > 1 or len(mergeable_verts) > 1:
                 for v in mergeable_verts:
-                    v[vertex_normal_weight_layer] = unweighted_val
+                    v[vertex_normal_weight_layer] = VertexNormalWeight.UNWEIGHTED.value
                     v[vertex_normal_x_layer] = n.x
                     v[vertex_normal_y_layer] = n.y
                     v[vertex_normal_z_layer] = n.z
@@ -791,19 +755,19 @@ class UpdateVertexNormals(YAVNEBase):
                 # Average face normals according to vertex normal weight.
                 n = Vector()
                 vertex_normal_weight = v[vertex_normal_weight_layer]
-                if vertex_normal_weight == -1:
+                if vertex_normal_weight == VertexNormalWeight.UNIFORM.value:
                     for loop in loop_subgroup:
                         n += loop.face.normal
-                elif vertex_normal_weight == 0:
+                elif vertex_normal_weight == VertexNormalWeight.ANGLE.value:
                     for loop in loop_subgroup:
                         n += loop.calc_angle() * loop.face.normal
-                elif vertex_normal_weight == 1:
+                elif vertex_normal_weight == VertexNormalWeight.AREA.value:
                     for loop in loop_subgroup:
                         n += loop.face.calc_area() * loop.face.normal
-                elif vertex_normal_weight == 2:
+                elif vertex_normal_weight == VertexNormalWeight.COMBINED.value:
                     for loop in loop_subgroup:
                         n += loop.calc_angle() * loop.face.calc_area() * loop.face.normal
-                elif vertex_normal_weight == 3:
+                elif vertex_normal_weight == VertexNormalWeight.UNWEIGHTED.value:
                     n = Vector((
                         v[vertex_normal_x_layer],
                         v[vertex_normal_y_layer],
