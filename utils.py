@@ -173,3 +173,29 @@ def loop_space_transform(loop, v, reverse = False):
     v = m * v
 
     return v
+
+
+def get_num_procs():
+    '''
+    Determines the number of processors automatically detected by Blender
+      NOTE: multiprocessing.cpu_count() is unreliable
+
+    Returns:
+        int: Number of processors
+    '''
+    render = bpy.context.scene.render
+
+    # Determine current scene's inital render settings.
+    initially_fixed = (render.threads_mode == 'FIXED')
+    initial_threads = render.threads
+
+    # Infer processor count from the number of render threads.
+    render.threads_mode = 'AUTO'
+    result = render.threads
+
+    # Restore current scene's render settings.
+    if initially_fixed:
+        render.threads_mode = 'FIXED'
+        render.threads = initial_threads
+
+    return result

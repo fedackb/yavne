@@ -17,7 +17,15 @@
 
 
 import bpy
+from ctypes import Structure, c_double
 from enum import Enum
+
+
+class Vec3(Structure):
+    '''
+    Represents a 3-dimensional vector as a ctype struct
+    '''
+    _fields_ = [('x', c_double), ('y', c_double), ('z', c_double)]
 
 
 class FaceNormalInfluence(Enum):

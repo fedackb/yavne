@@ -16,12 +16,15 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bgl
-import bmesh
 import bpy
+import bmesh
+import bgl
+import os
 from mathutils import Vector
-from .types import FaceNormalInfluence, VertexNormalWeight
-from .utils import split_loops, pick_object, loop_space_transform
+from multiprocessing import Process
+from multiprocessing.sharedctypes import Array
+from .types import FaceNormalInfluence, VertexNormalWeight, Vec3
+from .utils import split_loops, pick_object, loop_space_transform, get_num_procs
 
 
 class YAVNEBase(bpy.types.Operator):
@@ -720,34 +723,58 @@ class UpdateVertexNormals(YAVNEBase):
     )
     bl_options = set()
 
-    def execute(self, context):
-        # Split normal data can only be written from Object mode.
-        bpy.ops.object.mode_set(mode = 'OBJECT')
-        bpy.ops.object.shade_smooth()
+    def __init__(self):
+        super().__init__()
+        self.procs = []
 
-        mesh = context.active_object.data
-        mesh.use_auto_smooth = True
-        bm = bmesh.new()
-        bm.from_mesh(mesh)
+    def __del__(self):
+        if hasattr(super(), '__del__'):
+            super().__del__()
+
+        # Cleanup any lingering processes.
+        for p in self.procs:
+            p.terminate()
+
+    def worker(self, bm, out, chunk, total):
+        '''
+        Calculates a chunk of split normals data
+
+        Parameters:
+            bm (bmesh.types.BMesh): BMesh data
+            out (Array<Vec3>): Output sequence of split normals as ctype structs
+            chunk (int): Chunk of data to process in range [0, total)
+            total (int): Total number of chunks
+
+        Pre:
+            Output sequence shall be large enough to accommodate all split
+            normals with given chunk of data.
+
+        Post:
+            Output sequence is modified.
+        '''
         face_normal_influence_layer = bm.faces.layers.int['face-normal-influence']
         vertex_normal_weight_layer = bm.verts.layers.int['vertex-normal-weight']
         loop_normal_x_layer = bm.loops.layers.float['loop-normal-x']
         loop_normal_y_layer = bm.loops.layers.float['loop-normal-y']
         loop_normal_z_layer = bm.loops.layers.float['loop-normal-z']
 
+        # Determine which vertices are within the chunk of data.
+        first = int(chunk / total * len(bm.verts))
+        last = int((chunk + 1) / total * len(bm.verts))
+
         # Calculate loop normals.
-        mesh.calc_normals_split()
-        split_normals = [None] * len(mesh.loops)
-        for v in bm.verts:
+        for idx in [i + first for i in range(last - first)]:
+            v = bm.verts[idx]
+            vertex_normal_weight = v[vertex_normal_weight_layer]
 
             # Split vertex linked loops into shading groups.
             for loop_group in split_loops(v):
 
                 # Determine which face type most influences this vertex.
-                influence_max = max([
+                influence_max = max((
                     loop.face[face_normal_influence_layer]
                     for loop in loop_group
-                ])
+                ))
 
                 # Ignore all but the most influential face normals.
                 loop_subgroup = [
@@ -758,7 +785,6 @@ class UpdateVertexNormals(YAVNEBase):
 
                 # Average face normals according to vertex normal weight.
                 vn_local = Vector()
-                vertex_normal_weight = v[vertex_normal_weight_layer]
                 if vertex_normal_weight == VertexNormalWeight.UNIFORM.value:
                     for loop in loop_subgroup:
                         vn_local += loop.face.normal
@@ -783,10 +809,51 @@ class UpdateVertexNormals(YAVNEBase):
                 # Assign calculated vertex normal to all loops in the group.
                 vn_local.normalize()
                 for loop in loop_group:
-                    split_normals[loop.index] = vn_local
+                    split_normal = out[loop.index]
+                    split_normal.x, split_normal.y, split_normal.z = vn_local
+
+    def execute(self, context):
+        # Split normal data can only be written from Object mode.
+        bpy.ops.object.mode_set(mode = 'OBJECT')
+        bpy.ops.object.shade_smooth()
+
+        # Retrieve mesh data.
+        mesh = context.active_object.data
+        mesh.use_auto_smooth = True
+        bm = bmesh.new()
+        bm.from_mesh(mesh)
+
+        # Prepare mesh to be processed.
+        mesh.calc_normals_split()
+        bm.verts.ensure_lookup_table()
+        split_normals = Array(Vec3, len(mesh.loops), lock = False)
+
+        # Execute in parallel for large datasets if supported by the system.
+        if len(bm.verts) > 5000 and not os.name == 'nt':
+
+            # Create a team of worker processes.
+            num_procs = get_num_procs()
+            for i in range(num_procs):
+                self.procs.append(Process(
+                    target = self.worker,
+                    args = (bm, split_normals, i, num_procs)
+                ))
+
+            # Start processes.
+            for p in self.procs:
+                p.start()
+
+            # Wait until all processes have finished.
+            while len(self.procs) > 0:
+                p = self.procs.pop()
+                p.join()
+
+        # Otherwise, execute serially.
+        else:
+            self.worker(bm, split_normals, 0, 1)
 
         # Write split normal data to the mesh, and return to Edit mode.
-        mesh.normals_split_custom_set(split_normals)
+        mesh.normals_split_custom_set([(n.x, n.y, n.z) for n in split_normals])
         bpy.ops.object.mode_set(mode = 'EDIT')
 
         # Cleanup.
