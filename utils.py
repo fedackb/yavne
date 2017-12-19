@@ -55,7 +55,7 @@ def split_loops(vert, angle = math.pi):
         while (
             loop_next in link_loops and
             loop_curr.edge.is_manifold and
-            loop_curr.edge.smooth and
+            is_edge_smooth(loop_curr.edge) and
             loop_curr.edge.calc_face_angle() < angle
         ):
             # Transfer next loop to the subgroup.
@@ -72,7 +72,7 @@ def split_loops(vert, angle = math.pi):
         while (
             loop_prev in link_loops and
             loop_prev.edge.is_manifold and
-            loop_prev.edge.smooth and
+            is_edge_smooth(loop_prev.edge) and
             loop_prev.edge.calc_face_angle() < angle
         ):
             # Transfer previous loop to the subgroup.
@@ -197,5 +197,28 @@ def get_num_procs():
     if initially_fixed:
         render.threads_mode = 'FIXED'
         render.threads = initial_threads
+
+    return result
+
+
+def is_edge_smooth(edge):
+    '''
+    Determines if the given edge is smooth for shading purposes
+
+    Parameters:
+        edge (bmesh.types.BMEdge): Edge to evaluate
+
+    Returns:
+        bool: True if edge is smooth; False otherwise
+    '''
+    # Determine edge smoothness directly.
+    result = edge.smooth
+
+    # Infer edge smoothness from linked faces.
+    if result:
+        for f in edge.link_faces:
+            if not f.smooth:
+                result = False
+                break
 
     return result

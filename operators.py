@@ -815,7 +815,6 @@ class UpdateVertexNormals(YAVNEBase):
     def execute(self, context):
         # Split normal data can only be written from Object mode.
         bpy.ops.object.mode_set(mode = 'OBJECT')
-        bpy.ops.object.shade_smooth()
 
         # Retrieve mesh data.
         mesh = context.active_object.data
