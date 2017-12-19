@@ -17,14 +17,15 @@
 
 
 import bpy
-import sys
 import bmesh
+import math
+import sys
 from bpy_extras.view3d_utils import (
     region_2d_to_location_3d,
     region_2d_to_origin_3d,
     region_2d_to_vector_3d
 )
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 
 def split_loops(vert, angle = math.pi):
@@ -145,3 +146,30 @@ def pick_object(region, rv3d, x, y, near, far, objects):
                 result = (obj, location, normal, index)
 
     return result
+
+
+def loop_space_transform(loop, v, reverse = False):
+    '''
+    Transforms given vector from object space to loop-specific tangent space or
+    vice versa if reverse flag is set
+
+    Parameters:
+        loop (bmesh.types.BMLoop): Loop from which to calculate tangent space
+        v (mathutils.Vector): Input vector
+        reverse (bool=False): Flag indicating direction of transformation
+
+    Returns:
+        mathutils.Vector: Transformed vector
+    '''
+    # Define ortho-normal, loop-specific tangent space.
+    normal = loop.calc_normal()
+    tangent = loop.calc_tangent()
+    bitangent = normal.cross(tangent)
+
+    # Transform given vector.
+    m = Matrix((normal, tangent, bitangent))
+    if reverse:
+        m.transpose()
+    v = m * v
+
+    return v

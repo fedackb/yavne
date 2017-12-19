@@ -21,7 +21,7 @@ import bmesh
 import bpy
 from mathutils import Vector
 from .types import FaceNormalInfluence, VertexNormalWeight
-from .utils import Node, split_loops, pick_object
+from .utils import split_loops, pick_object, loop_space_transform
 
 
 class YAVNEBase(bpy.types.Operator):
@@ -46,9 +46,9 @@ class YAVNEBase(bpy.types.Operator):
     def __init__(self):
         mesh = bpy.context.active_object.data
         bm = bmesh.from_edit_mesh(mesh)
-        vert_float_layers = bm.verts.layers.float
         vert_int_layers = bm.verts.layers.int
         face_int_layers = bm.faces.layers.int
+        loop_float_layers = bm.loops.layers.float
 
         # Reference addon.
         self.addon = bpy.context.user_preferences.addons[self.addon_key]
@@ -61,13 +61,13 @@ class YAVNEBase(bpy.types.Operator):
         if not 'face-normal-influence' in face_int_layers.keys():
             face_int_layers.new('face-normal-influence')
 
-        # Ensure that vertex normal component layers exist.
-        if not 'vertex-normal-x' in vert_float_layers.keys():
-            vert_float_layers.new('vertex-normal-x')
-        if not 'vertex-normal-y' in vert_float_layers.keys():
-            vert_float_layers.new('vertex-normal-y')
-        if not 'vertex-normal-z' in vert_float_layers.keys():
-            vert_float_layers.new('vertex-normal-z')
+        # Ensure that loop-space normal custom data layers exist.
+        if not 'loop-normal-x' in loop_float_layers.keys():
+            loop_float_layers.new('loop-normal-x')
+        if not 'loop-normal-y' in loop_float_layers.keys():
+            loop_float_layers.new('loop-normal-y')
+        if not 'loop-normal-z' in loop_float_layers.keys():
+            loop_float_layers.new('loop-normal-z')
 
         # Update the mesh.
         bmesh.update_edit_mesh(mesh)
@@ -106,9 +106,9 @@ class ManageVertexNormalWeight(YAVNEBase):
         mesh = obj_curr.data
         bm = bmesh.from_edit_mesh(mesh)
         vertex_normal_weight_layer = bm.verts.layers.int['vertex-normal-weight']
-        vertex_normal_x_layer = bm.verts.layers.float['vertex-normal-x']
-        vertex_normal_y_layer = bm.verts.layers.float['vertex-normal-y']
-        vertex_normal_z_layer = bm.verts.layers.float['vertex-normal-z']
+        loop_normal_x_layer = bm.loops.layers.float['loop-normal-x']
+        loop_normal_y_layer = bm.loops.layers.float['loop-normal-y']
+        loop_normal_z_layer = bm.loops.layers.float['loop-normal-z']
 
         # Determine enumerated vertex normal weight value.
         vertex_normal_weight = VertexNormalWeight[self.type].value
@@ -134,13 +134,13 @@ class ManageVertexNormalWeight(YAVNEBase):
             if self.type == 'UNWEIGHTED':
                 mesh.calc_normals_split()
                 for v in selected_verts:
-                    n = Vector()
                     for loop in v.link_loops:
-                        n += mesh.loops[loop.index].normal
-                    n.normalize()
-                    v[vertex_normal_x_layer] = n.x
-                    v[vertex_normal_y_layer] = n.y
-                    v[vertex_normal_z_layer] = n.z
+                        vn_local = mesh.loops[loop.index].normal
+                        vn_loop = loop_space_transform(loop, vn_local)
+                        loop[loop_normal_x_layer] = vn_loop.x
+                        loop[loop_normal_y_layer] = vn_loop.y
+                        loop[loop_normal_z_layer] = vn_loop.z
+                mesh.free_normals_split()
 
         # Update the mesh.
         bmesh.update_edit_mesh(mesh)
@@ -356,8 +356,8 @@ class GetNormalVector(YAVNEBase):
         selected_face = [f for f in bm.faces if f.select][0]
 
         # Store selected face normal.
-        n = model_matrix * selected_face.normal
-        self.addon.preferences.normal_buffer = n
+        vn_global = model_matrix * selected_face.normal
+        self.addon.preferences.normal_buffer = vn_global
 
         return {'FINISHED'}
 
@@ -414,19 +414,19 @@ class GetNormalVector(YAVNEBase):
             return {'RUNNING_MODAL'}
 
     def show_usage(self, context):
-        n = self.normals[self.normals_idx]
+        vn_global = self.normals[self.normals_idx]
 
         # Display usage instructions in the active area's header.
         usage = (
             'Left/Right: Select Normal    Enter: Confirm    ' +
             'Escape: Cancel    Normal: ({0:.2}, {1:.2}, {2:.2})'
-        ).format(*n)
+        ).format(*vn_global)
         context.area.header_text_set(usage)
 
     def store_vertex_normal(self, context):
         # Store current vertex normal in property buffer.
-        n = Vector(self.normals[self.normals_idx])
-        self.addon.preferences.normal_buffer = n
+        vn_global = Vector(self.normals[self.normals_idx])
+        self.addon.preferences.normal_buffer = vn_global
 
     def finish(self, context):
         mesh = context.active_object.data
@@ -457,8 +457,8 @@ class GetNormalVector(YAVNEBase):
         bgl.glBegin(bgl.GL_LINES)
         bgl.glColor3f(*default_color)
         bgl.glLineWidth(1)
-        for n in self.normals:
-            end = start + Vector(n) * normal_size
+        for vn_global in self.normals:
+            end = start + Vector(vn_global) * normal_size
             bgl.glVertex3f(*start)
             bgl.glVertex3f(*end)
         bgl.glEnd()
@@ -494,17 +494,19 @@ class SetNormalVector(YAVNEBase):
         bm = bmesh.from_edit_mesh(mesh)
         normal_buffer = self.addon.preferences.normal_buffer
         vertex_normal_weight_layer = bm.verts.layers.int['vertex-normal-weight']
-        vertex_normal_x_layer = bm.verts.layers.float['vertex-normal-x']
-        vertex_normal_y_layer = bm.verts.layers.float['vertex-normal-y']
-        vertex_normal_z_layer = bm.verts.layers.float['vertex-normal-z']
+        loop_normal_x_layer = bm.loops.layers.float['loop-normal-x']
+        loop_normal_y_layer = bm.loops.layers.float['loop-normal-y']
+        loop_normal_z_layer = bm.loops.layers.float['loop-normal-z']
 
         # Assign stored world space normal vector to all selected vertices.
-        vertex_normal = obj_curr.matrix_world.inverted() * normal_buffer
+        vn_local = obj_curr.matrix_world.inverted() * normal_buffer
         for v in [v for v in bm.verts if v.select]:
             v[vertex_normal_weight_layer] = VertexNormalWeight.UNWEIGHTED.value
-            v[vertex_normal_x_layer] = vertex_normal.x
-            v[vertex_normal_y_layer] = vertex_normal.y
-            v[vertex_normal_z_layer] = vertex_normal.z
+            for loop in v.link_loops:
+                vn_loop = loop_space_transform(loop, vn_local)
+                loop[loop_normal_x_layer] = vn_loop.x
+                loop[loop_normal_y_layer] = vn_loop.y
+                loop[loop_normal_z_layer] = vn_loop.z
 
         # Update the mesh.
         bpy.ops.mesh.yavne_update_vertex_normals()
@@ -552,9 +554,9 @@ class MergeVertexNormals(YAVNEBase):
         mesh = obj_curr.data
         bm = bmesh.from_edit_mesh(mesh)
         vertex_normal_weight_layer = bm.verts.layers.int['vertex-normal-weight']
-        vertex_normal_x_layer = bm.verts.layers.float['vertex-normal-x']
-        vertex_normal_y_layer = bm.verts.layers.float['vertex-normal-y']
-        vertex_normal_z_layer = bm.verts.layers.float['vertex-normal-z']
+        loop_normal_x_layer = bm.loops.layers.float['loop-normal-x']
+        loop_normal_y_layer = bm.loops.layers.float['loop-normal-y']
+        loop_normal_z_layer = bm.loops.layers.float['loop-normal-z']
         merge_distance_squared = self.distance ** 2
 
         # Organize vertices into discrete space.
@@ -608,26 +610,28 @@ class MergeVertexNormals(YAVNEBase):
             ]
 
             # Calculate merged normal.
-            n = Vector()
+            vn_local = Vector()
             for v in mergeable_verts:
 
                 # Average normals of current vertex.
-                n_curr = Vector()
+                vn = Vector()
                 for loop in v.link_loops:
-                    n_curr += mesh.loops[loop.index].normal
-                n_curr.normalize()
+                    vn += mesh.loops[loop.index].normal
+                vn.normalize()
 
                 # Include current, averaged vertex normal in merged normal.
-                n += n_curr
-            n.normalize()
+                vn_local += vn
+            vn_local.normalize()
 
             # Assign merged normal to all vertices within given merge distance.
             if v_curr_normal_count > 1 or len(mergeable_verts) > 1:
                 for v in mergeable_verts:
                     v[vertex_normal_weight_layer] = VertexNormalWeight.UNWEIGHTED.value
-                    v[vertex_normal_x_layer] = n.x
-                    v[vertex_normal_y_layer] = n.y
-                    v[vertex_normal_z_layer] = n.z
+                    for loop in v.link_loops:
+                        vn_loop = loop_space_transform(loop, vn_local)
+                        loop[loop_normal_x_layer] = vn_loop.x
+                        loop[loop_normal_y_layer] = vn_loop.y
+                        loop[loop_normal_z_layer] = vn_loop.z
 
             # Indicate which selected vertices have been merged.
             local_selection = [v for v in mergeable_verts if v.select]
@@ -650,9 +654,9 @@ class TransferShading(YAVNEBase):
     bl_options = set()
 
     @classmethod
-    # The source and target objects must be distinct, and at least one vertex
-    # must be selected from the target object.
     def poll(cls, context):
+        # The source and target objects must be distinct, and at least one
+        # vertex must be selected from the target object.
         addon = context.user_preferences.addons[cls.addon_key]
         source = addon.preferences.source
         obj_curr = context.active_object
@@ -727,9 +731,9 @@ class UpdateVertexNormals(YAVNEBase):
         bm.from_mesh(mesh)
         face_normal_influence_layer = bm.faces.layers.int['face-normal-influence']
         vertex_normal_weight_layer = bm.verts.layers.int['vertex-normal-weight']
-        vertex_normal_x_layer = bm.verts.layers.float['vertex-normal-x']
-        vertex_normal_y_layer = bm.verts.layers.float['vertex-normal-y']
-        vertex_normal_z_layer = bm.verts.layers.float['vertex-normal-z']
+        loop_normal_x_layer = bm.loops.layers.float['loop-normal-x']
+        loop_normal_y_layer = bm.loops.layers.float['loop-normal-y']
+        loop_normal_z_layer = bm.loops.layers.float['loop-normal-z']
 
         # Calculate loop normals.
         mesh.calc_normals_split()
@@ -753,36 +757,40 @@ class UpdateVertexNormals(YAVNEBase):
                 ]
 
                 # Average face normals according to vertex normal weight.
-                n = Vector()
+                vn_local = Vector()
                 vertex_normal_weight = v[vertex_normal_weight_layer]
                 if vertex_normal_weight == VertexNormalWeight.UNIFORM.value:
                     for loop in loop_subgroup:
-                        n += loop.face.normal
+                        vn_local += loop.face.normal
                 elif vertex_normal_weight == VertexNormalWeight.ANGLE.value:
                     for loop in loop_subgroup:
-                        n += loop.calc_angle() * loop.face.normal
+                        vn_local += loop.calc_angle() * loop.face.normal
                 elif vertex_normal_weight == VertexNormalWeight.AREA.value:
                     for loop in loop_subgroup:
-                        n += loop.face.calc_area() * loop.face.normal
+                        vn_local += loop.face.calc_area() * loop.face.normal
                 elif vertex_normal_weight == VertexNormalWeight.COMBINED.value:
                     for loop in loop_subgroup:
-                        n += loop.calc_angle() * loop.face.calc_area() * loop.face.normal
+                        vn_local += loop.calc_angle() * loop.face.calc_area() * loop.face.normal
                 elif vertex_normal_weight == VertexNormalWeight.UNWEIGHTED.value:
-                    n = Vector((
-                        v[vertex_normal_x_layer],
-                        v[vertex_normal_y_layer],
-                        v[vertex_normal_z_layer]
-                    ))
+                    for loop in loop_subgroup:
+                        vn_loop = Vector((
+                            loop[loop_normal_x_layer],
+                            loop[loop_normal_y_layer],
+                            loop[loop_normal_z_layer]
+                        ))
+                        vn_local += loop_space_transform(loop, vn_loop, True)
 
                 # Assign calculated vertex normal to all loops in the group.
-                n.normalize()
+                vn_local.normalize()
                 for loop in loop_group:
-                    split_normals[loop.index] = n
+                    split_normals[loop.index] = vn_local
 
         # Write split normal data to the mesh, and return to Edit mode.
         mesh.normals_split_custom_set(split_normals)
         bpy.ops.object.mode_set(mode = 'EDIT')
 
+        # Cleanup.
+        mesh.free_normals_split()
         bm.free()
 
         return {'FINISHED'}
