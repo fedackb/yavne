@@ -56,7 +56,7 @@ def split_loops(vert, angle = math.pi):
             loop_next in link_loops and
             loop_curr.edge.is_manifold and
             is_edge_smooth(loop_curr.edge) and
-            loop_curr.edge.calc_face_angle() < angle
+            angle - loop_curr.edge.calc_face_angle() > 0.0000001
         ):
             # Transfer next loop to the subgroup.
             link_loops.remove(loop_next)
@@ -73,7 +73,7 @@ def split_loops(vert, angle = math.pi):
             loop_prev in link_loops and
             loop_prev.edge.is_manifold and
             is_edge_smooth(loop_prev.edge) and
-            loop_prev.edge.calc_face_angle() < angle
+            angle - loop_prev.edge.calc_face_angle() > 0.0000001
         ):
             # Transfer previous loop to the subgroup.
             link_loops.remove(loop_prev)
@@ -220,5 +220,41 @@ def is_edge_smooth(edge):
             if not f.smooth:
                 result = False
                 break
+
+    return result
+
+
+def get_coplanar(face, angle = 0.075):
+    '''
+    Determines which faces are both contiguous and coplanar to given one
+
+    Parameters:
+        face (bmesh.types.BMFace): Face that defines coplanarity
+        angle (float): Coplanarity angle threshold in radians
+
+    Returns:
+        set<bmesh.types.BMFace>: Coplanar faces
+    '''
+    result = set()
+
+    # Traverse contiguous, coplanar faces.
+    traversal_stack = [face]
+    while len(traversal_stack) > 0:
+        f_curr = traversal_stack.pop()
+
+        # Accumulate results upon visiting a face.
+        result.add(f_curr)
+
+        # Search contiguous faces.
+        for e in f_curr.edges:
+            if e.is_contiguous:
+                for f_linked in e.link_faces:
+                    if f_linked not in result:
+
+                        # Determine if the contiguous face is also coplanar.
+                        if angle - face.normal.angle(f_linked.normal) > 0.0000001:
+
+                            # Stage the contiguous, coplanar face for traversal.
+                            traversal_stack.append(f_linked)
 
     return result
