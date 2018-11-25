@@ -69,8 +69,7 @@ class YAVNEPanel(bpy.types.Panel):
         row.prop(mesh, 'show_normal_loop', text = '', icon = 'LOOPSEL')
         row.prop(view_3d_theme, 'split_normal', text = '')
         row.prop(context.tool_settings, 'normal_size', text = 'Size')
-        if not mesh.use_auto_smooth:
-            row.active = False
+        row.active = mesh.use_auto_smooth
 
     def draw_vertex_normal_weight_ui(self, context, layout):
         addon_props = self.addon_props
@@ -168,4 +167,22 @@ class YAVNEPanel(bpy.types.Panel):
         row.operator('view3d.yavne_pick_shading_source', text = '', icon = 'EYEDROPPER')
 
     def draw_update_vertex_normals_ui(self, context, layout):
-        layout.operator('mesh.yavne_update_vertex_normals')
+        addon_props = self.addon_props
+
+        col = layout.column(align = True)
+        row = col.row(align = True)
+
+        row.operator('mesh.yavne_update_vertex_normals')
+        row.prop(addon_props, 'show_update_options', text = '', icon = 'SCRIPTWIN')
+
+        if addon_props.show_update_options:
+            box = col.box()
+
+            col = box.column(align = True)
+
+            col.prop(addon_props, 'use_linked_face_weights')
+
+            row = col.row()
+
+            row.prop(addon_props, 'link_angle')
+            row.active = addon_props.use_linked_face_weights

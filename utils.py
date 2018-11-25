@@ -56,7 +56,7 @@ def split_loops(vert, angle = math.pi):
             loop_next in link_loops and
             loop_curr.edge.is_manifold and
             is_edge_smooth(loop_curr.edge) and
-            angle - loop_curr.edge.calc_face_angle() > 0.0000001
+            angle - loop_curr.edge.calc_face_angle() > 0.000001
         ):
             # Transfer next loop to the subgroup.
             link_loops.remove(loop_next)
@@ -73,7 +73,7 @@ def split_loops(vert, angle = math.pi):
             loop_prev in link_loops and
             loop_prev.edge.is_manifold and
             is_edge_smooth(loop_prev.edge) and
-            angle - loop_prev.edge.calc_face_angle() > 0.0000001
+            angle - loop_prev.edge.calc_face_angle() > 0.000001
         ):
             # Transfer previous loop to the subgroup.
             link_loops.remove(loop_prev)
@@ -224,21 +224,21 @@ def is_edge_smooth(edge):
     return result
 
 
-def get_coplanar(face, angle = 0.075):
+def get_linked_faces(face, angle = 0.0):
     '''
-    Determines which faces are both contiguous and coplanar to given one
+    Determines which faces are linked to given one
 
     Parameters:
-        face (bmesh.types.BMFace): Face that defines coplanarity
-        angle (float): Coplanarity angle threshold in radians
+        face (bmesh.types.BMFace): Face for which to get linked faces
+        angle (float): Edge angle threshold in radians
 
     Returns:
-        set<bmesh.types.BMFace>: Coplanar faces
+        set<bmesh.types.BMFace>: Linked faces
     '''
     result = set()
-
-    # Traverse contiguous, coplanar faces.
     traversal_stack = [face]
+
+    # Traverse staged faces.
     while len(traversal_stack) > 0:
         f_curr = traversal_stack.pop()
 
@@ -251,10 +251,10 @@ def get_coplanar(face, angle = 0.075):
                 for f_linked in e.link_faces:
                     if f_linked not in result:
 
-                        # Determine if the contiguous face is also coplanar.
-                        if angle - face.normal.angle(f_linked.normal) > 0.0000001:
+                        # Check if faces are within edge angle threshold.
+                        if angle - f_curr.normal.angle(f_linked.normal) > 0.000001:
 
-                            # Stage the contiguous, coplanar face for traversal.
+                            # Stage linked face for traversal.
                             traversal_stack.append(f_linked)
 
     return result

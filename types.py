@@ -19,6 +19,7 @@
 import bpy
 from ctypes import Structure, c_double
 from enum import Enum
+from .utils import get_linked_faces
 
 
 class Vec3(Structure):
@@ -143,3 +144,93 @@ class VertexNormalWeight(Enum):
                 )
             ]
         )
+
+
+class Cache():
+    '''
+    Data structure for caching values
+
+    Attributes:
+        _cache (dict<tuple, Any>): Cached values
+    '''
+
+    def __init__(self, *args, **kwargs):
+        '''
+        Initializes this cache
+        '''
+        self._cache = dict()
+
+    def get(self, *args, **kwargs):
+        '''
+        Gets cached value or calculates a value if not already cached
+
+        Returns:
+            Any: Cached value
+        '''
+        if args not in self._cache:
+            self._cache[args] = self._calc(*args, **kwargs)
+        return self._cache[args]
+
+    def _calc(self, *args, **kwargs):
+        '''
+        Abstract method to calculate a value
+
+        Raises: NotImplementedError
+        '''
+        raise NotImplementedError
+
+
+class FaceAreaCache(Cache):
+    '''
+    Data structure for caching face areas
+    '''
+
+    def _calc(self, face, *args, **kwargs):
+        '''
+        Calculates area of given face
+
+        Parameters:
+            face (bmesh.types.BMFace): Face for which to calculate the area
+
+        Returns:
+            float: Face area
+        '''
+        return face.calc_area()
+
+
+class LinkedFaceAreaCache(Cache):
+    '''
+    Data structure for caching linked face areas
+
+    Attributes:
+        _angle (float): Edge angle threshold in radians
+    '''
+
+    def __init__(self, angle = 0.0, *args, **kwargs):
+        '''
+        Initializes this linked face area cache
+
+        Parameters:
+            angle (float): Edge angle threshold in radians
+        '''
+        super().__init__(angle, *args, **kwargs)
+        self._angle = angle
+
+    def _calc(self, face, *args, **kwargs):
+        '''
+        Calculates linked face area of given face
+
+        Parameters:
+            face (bmesh.types.BMFace): Face for which to calculate linked face area
+
+        Post:
+            Area values are cached for all faces linked to given face.
+
+        Returns:
+            float: Linked face area
+        '''
+        linked_faces = get_linked_faces(face, self._angle)
+        linked_face_area = sum(f.calc_area() for f in linked_faces)
+        for f in linked_faces:
+            self._cache[(f, *args)] = linked_face_area
+        return linked_face_area

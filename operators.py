@@ -23,8 +23,12 @@ import os
 from mathutils import Vector
 from multiprocessing import Process
 from multiprocessing.sharedctypes import Array
-from .types import FaceNormalInfluence, VertexNormalWeight, Vec3
-from .utils import split_loops, pick_object, loop_space_transform, get_num_procs
+from .types import (
+    FaceAreaCache, LinkedFaceAreaCache, FaceNormalInfluence, VertexNormalWeight, Vec3
+)
+from .utils import (
+    split_loops, pick_object, loop_space_transform, get_num_procs
+)
 
 
 class YAVNEBase(bpy.types.Operator):
@@ -758,6 +762,12 @@ class UpdateVertexNormals(YAVNEBase):
         loop_normal_y_layer = bm.loops.layers.float['loop-normal-y']
         loop_normal_z_layer = bm.loops.layers.float['loop-normal-z']
 
+        # Create a cache for face areas.
+        if self.addon.preferences.use_linked_face_weights:
+            area_cache = LinkedFaceAreaCache(self.addon.preferences.link_angle)
+        else:
+            area_cache = FaceAreaCache()
+
         # Determine which vertices are within the chunk of data.
         first = int(chunk / total * len(bm.verts))
         last = int((chunk + 1) / total * len(bm.verts))
@@ -793,10 +803,12 @@ class UpdateVertexNormals(YAVNEBase):
                         vn_local += loop.calc_angle() * loop.face.normal
                 elif vertex_normal_weight == VertexNormalWeight.AREA.value:
                     for loop in loop_subgroup:
-                        vn_local += loop.face.calc_area() * loop.face.normal
+                        area = area_cache.get(loop.face)
+                        vn_local +=  area * loop.face.normal
                 elif vertex_normal_weight == VertexNormalWeight.COMBINED.value:
                     for loop in loop_subgroup:
-                        vn_local += loop.calc_angle() * loop.face.calc_area() * loop.face.normal
+                        area = area_cache.get(loop.face)
+                        vn_local += loop.calc_angle() * area * loop.face.normal
                 elif vertex_normal_weight == VertexNormalWeight.UNWEIGHTED.value:
                     for loop in loop_subgroup:
                         vn_loop = Vector((

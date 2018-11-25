@@ -17,6 +17,7 @@
 
 
 import bpy
+import math
 from .types import FaceNormalInfluence, VertexNormalWeight
 
 
@@ -62,4 +63,33 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
             'vertices are also merged.'
         ),
         default = False
+    )
+
+    show_update_options = bpy.props.BoolProperty(
+        name = 'Update Options',
+        description = 'Show/hide options for updating vertex normals.',
+        default = False
+    )
+
+    use_linked_face_weights = bpy.props.BoolProperty(
+        name = 'Linked Face Weights',
+        description = (
+            'Factor linked face areas into the calculation of face weighted ' +
+            'vertex normals.'
+        ),
+        default = True
+    )
+
+    link_angle = bpy.props.FloatProperty(
+        name = 'Link Angle',
+        description = (
+            'Maximum edge angle for two faces to be considered linked\n\n'
+            'e.g. Coplanar faces have a link angle of zero degrees.'
+        ),
+        default = 0.04,
+        min = 0.0,
+        max = math.pi,
+        step = 10,
+        precision = 1,
+        subtype = 'ANGLE'
     )
