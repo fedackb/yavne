@@ -19,6 +19,7 @@
 import bpy
 import bmesh
 import bgl
+import math
 import os
 from mathutils import Vector
 from multiprocessing import Process
@@ -768,6 +769,12 @@ class UpdateVertexNormals(YAVNEBase):
         else:
             area_cache = FaceAreaCache()
 
+        # Determine the auto smooth angle.
+        if self.addon.preferences.use_auto_smooth:
+            smooth_angle = self.addon.preferences.smooth_angle
+        else:
+            smooth_angle = math.pi
+
         # Determine which vertices are within the chunk of data.
         first = int(chunk / total * len(bm.verts))
         last = int((chunk + 1) / total * len(bm.verts))
@@ -778,7 +785,7 @@ class UpdateVertexNormals(YAVNEBase):
             vertex_normal_weight = v[vertex_normal_weight_layer]
 
             # Split vertex linked loops into shading groups.
-            for loop_group in split_loops(v):
+            for loop_group in split_loops(v, smooth_angle):
 
                 # Determine which face type most influences this vertex.
                 influence_max = max((

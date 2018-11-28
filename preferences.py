@@ -83,10 +83,27 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
     link_angle = bpy.props.FloatProperty(
         name = 'Link Angle',
         description = (
-            'Maximum edge angle for two faces to be considered linked\n\n'
+            'Maximum angle between faces to be considered as linked\n\n' +
             'e.g. Coplanar faces have a link angle of zero degrees.'
         ),
-        default = 0.04,
+        default = math.radians(2.0),
+        min = 0.0,
+        max = math.pi,
+        step = 10,
+        precision = 1,
+        subtype = 'ANGLE'
+    )
+
+    use_auto_smooth = bpy.props.BoolProperty(
+        name = 'Auto Smooth',
+        description = 'Auto smooth based on angle between faces.',
+        default = True
+    )
+
+    smooth_angle = bpy.props.FloatProperty(
+        name = 'Smooth Angle',
+        description = 'Maximum angle between faces to be considered as smooth',
+        default = math.radians(89.9),
         min = 0.0,
         max = math.pi,
         step = 10,

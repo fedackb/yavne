@@ -186,3 +186,12 @@ class YAVNEPanel(bpy.types.Panel):
 
             row.prop(addon_props, 'link_angle')
             row.active = addon_props.use_linked_face_weights
+
+            col = box.column(align = True)
+
+            col.prop(addon_props, 'use_auto_smooth')
+
+            row = col.row()
+
+            row.prop(addon_props, 'smooth_angle')
+            row.active = addon_props.use_auto_smooth

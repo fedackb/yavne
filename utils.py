@@ -56,7 +56,7 @@ def split_loops(vert, angle = math.pi):
             loop_next in link_loops and
             loop_curr.edge.is_manifold and
             is_edge_smooth(loop_curr.edge) and
-            angle - loop_curr.edge.calc_face_angle() > 0.000001
+            loop_curr.edge.calc_face_angle() <= angle
         ):
             # Transfer next loop to the subgroup.
             link_loops.remove(loop_next)
@@ -73,7 +73,7 @@ def split_loops(vert, angle = math.pi):
             loop_prev in link_loops and
             loop_prev.edge.is_manifold and
             is_edge_smooth(loop_prev.edge) and
-            angle - loop_prev.edge.calc_face_angle() > 0.000001
+            loop_prev.edge.calc_face_angle() <= angle
         ):
             # Transfer previous loop to the subgroup.
             link_loops.remove(loop_prev)
@@ -252,7 +252,7 @@ def get_linked_faces(face, angle = 0.0):
                     if f_linked not in result:
 
                         # Check if faces are within edge angle threshold.
-                        if angle - f_curr.normal.angle(f_linked.normal) > 0.000001:
+                        if f_curr.normal.angle(f_linked.normal) <= angle:
 
                             # Stage linked face for traversal.
                             traversal_stack.append(f_linked)
