@@ -61,7 +61,26 @@ One scenario in which this tool might be useful is when a user wants to add deta
 
 ![transfer_shading](https://cloud.githubusercontent.com/assets/8960984/13205760/bf1b57d4-d8ac-11e5-9343-95043048170a.png)
 
+### **Update Vertex Normals** ##
+
+It is necessary to recalculate vertex normals after making changes to geometry. Two options are available for adjusting how the calculation is performed.
+
+**Linked Face Weights** factor the areas of adjacent faces into the calculation of face weighted vertex normals. For instance, all coplanar face areas are summed when this option is enabled and the corresponding link angle is set to zero degrees.
+
+**Auto Smooth** sharpens edges based on the angle between faces. The behavior is similar to Blender's builtin Auto Smooth option.
+
+![update_options](https://user-images.githubusercontent.com/8960984/49330829-6f1b0d00-f551-11e8-91fa-01b4dd8e77c8.png)
+
 ### **Version History** ###
+
+1.9.0
+
+ * Added option to sharpen edges based on the angle between faces
+ * Added option to factor linked face areas into the calculation of face weighted vertex normals
+ * Added support for flat shaded faces
+ * Implemented concurrent processing of vertex normals for Unix-like systems
+ * Refactored unweighted vertex normals to use loop data layers
+ * Optimized algorithm for splitting vertex normals
 
 1.3.0
 
