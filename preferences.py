@@ -50,7 +50,7 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
         name = 'Merge Distance',
         description = 'Maximum allowed distance between merged vertex normals',
         default = 0.0001,
-        min = 0.0,
+        min = 0.0001,
         soft_max = 1.0,
         step = 0.01,
         precision = 4

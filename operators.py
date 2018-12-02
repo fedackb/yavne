@@ -535,7 +535,7 @@ class MergeVertexNormals(YAVNEBase):
         name = 'Merge Distance',
         description = 'Maximum allowed distance between merged vertex normals',
         default = 0.0001,
-        min = 0.0
+        min = 0.0001
     )
 
     unselected = bpy.props.BoolProperty(
