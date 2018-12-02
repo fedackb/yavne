@@ -21,7 +21,7 @@ bl_info = {
     'description' : 'Yet another vertex normal editor',
     'location' : '3D View > Tool Shelf > Shading/UVs',
     'author' : 'Brett Fedack',
-    'version' : (1, 9),
+    'version' : (1, 9, 2),
     'blender' : (2, 79, 0),
     'category' : 'Mesh'
 }

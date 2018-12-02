@@ -73,6 +73,11 @@ It is necessary to recalculate vertex normals after making changes to geometry. 
 
 ### **Version History** ###
 
+1.9.2
+
+ * Forced sharp edge visibility
+ * Fixed divide-by-zero exception with Merge tool
+
 1.9.0
 
  * Added option to sharpen edges based on the angle between faces
