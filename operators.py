@@ -837,9 +837,12 @@ class UpdateVertexNormals(YAVNEBase):
 
         # Retrieve mesh data.
         mesh = context.active_object.data
-        mesh.use_auto_smooth = True
         bm = bmesh.new()
         bm.from_mesh(mesh)
+
+        # Enable mesh flags.
+        mesh.use_auto_smooth = True
+        mesh.show_edge_sharp = True
 
         # Prepare mesh to be processed.
         mesh.calc_normals_split()
