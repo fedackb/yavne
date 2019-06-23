@@ -15,16 +15,15 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-
 import bpy
 
 
-class YAVNEPanel(bpy.types.Panel):
-    bl_category = 'Shading / UVs'
-    bl_idname = 'VIEW3D_PT_yavne'
+class MESH_PT_YAVNEPanel(bpy.types.Panel):
+    bl_idname = 'MESH_PT_yavne'
     bl_label = 'Y.A.V.N.E.'
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
+    bl_region_type = 'UI'
+    bl_category = 'Tool'
 
     addon_key = __package__.split('.')[0]
 
@@ -33,7 +32,7 @@ class YAVNEPanel(bpy.types.Panel):
         return context.mode == 'EDIT_MESH'
 
     def draw(self, context):
-        addon = context.user_preferences.addons[self.addon_key]
+        addon = context.preferences.addons[self.addon_key]
         self.addon_props = addon.preferences
 
         layout = self.layout
@@ -61,22 +60,27 @@ class YAVNEPanel(bpy.types.Panel):
 
     def draw_display_properties_ui(self, context, layout):
         mesh = context.active_object.data
-        view_3d_theme = context.user_preferences.themes['Default'].view_3d
+        overlay = context.space_data.overlay
+        view_3d_theme = context.preferences.themes['Default'].view_3d
 
         row = layout.row(align = True)
         row.alignment = 'CENTER'
 
-        row.prop(mesh, 'show_normal_loop', text = '', icon = 'LOOPSEL')
-        row.prop(view_3d_theme, 'split_normal', text = '')
-        row.prop(context.tool_settings, 'normal_size', text = 'Size')
-        row.active = mesh.use_auto_smooth
+        row.prop(overlay, 'show_split_normals', text = '', icon = 'NORMALS_VERTEX_FACE')
+
+        subrow = row.row(align = True)
+        subrow.alignment = 'CENTER'
+
+        subrow.prop(view_3d_theme, 'split_normal', text = '')
+        subrow.prop(overlay, 'normals_length', text = 'Size')
+        subrow.active = overlay.show_split_normals
 
     def draw_vertex_normal_weight_ui(self, context, layout):
         addon_props = self.addon_props
 
         col = layout.column(align = True)
 
-        col.label('Vertex Normal Weight:')
+        col.label(text = 'Vertex Normal Weight:')
 
         row = col.row(align = True)
 
@@ -86,7 +90,7 @@ class YAVNEPanel(bpy.types.Panel):
         op.action = 'GET'
         op.type = addon_props.vertex_normal_weight
 
-        op = row.operator('mesh.yavne_manage_vertex_normal_weight', text = '', icon = 'ZOOMIN')
+        op = row.operator('mesh.yavne_manage_vertex_normal_weight', text = '', icon = 'ADD')
         op.action = 'SET'
         op.type = addon_props.vertex_normal_weight
         op.update = True
@@ -97,7 +101,7 @@ class YAVNEPanel(bpy.types.Panel):
         col = layout.column(align = True)
 
         row = col.row()
-        row.label('Face Normal Influence:')
+        row.label(text = 'Face Normal Influence:')
 
         row = col.row(align = True)
 
@@ -107,7 +111,7 @@ class YAVNEPanel(bpy.types.Panel):
         op.action = 'GET'
         op.type = addon_props.face_normal_influence
 
-        op = row.operator('mesh.yavne_manage_face_normal_influence', text = '', icon = 'ZOOMIN')
+        op = row.operator('mesh.yavne_manage_face_normal_influence', text = '', icon = 'ADD')
         op.action = 'SET'
         op.type = addon_props.face_normal_influence
         op.update = True
@@ -132,13 +136,13 @@ class YAVNEPanel(bpy.types.Panel):
         op.distance = addon_props.merge_distance
         op.unselected = addon_props.merge_unselected
 
-        row.prop(addon_props, 'merge_unselected', text = '', icon = 'ROTACTIVE')
+        row.prop(addon_props, 'merge_unselected', text = '', icon = 'PIVOT_ACTIVE')
 
         col.prop(addon_props, 'merge_distance', text = 'Distance')
 
     def draw_transfer_shading_ui(self, context, layout):
         addon_props = self.addon_props
-        obj_curr = context.active_object
+        edit_object = context.edit_object
 
         col = layout.column(align = True)
 
@@ -146,7 +150,7 @@ class YAVNEPanel(bpy.types.Panel):
         available_sources = addon_props.available_sources
         available_sources.clear()
         for obj in context.scene.objects:
-            if obj.type == 'MESH' and obj != obj_curr:
+            if obj.type == 'MESH' and obj != edit_object:
                 item = available_sources.add()
                 item.name = obj.name
 
@@ -173,7 +177,7 @@ class YAVNEPanel(bpy.types.Panel):
         row = col.row(align = True)
 
         row.operator('mesh.yavne_update_vertex_normals')
-        row.prop(addon_props, 'show_update_options', text = '', icon = 'SCRIPTWIN')
+        row.prop(addon_props, 'show_update_options', text = '', icon = 'PREFERENCES')
 
         if addon_props.show_update_options:
             box = col.box()

@@ -6,9 +6,9 @@ This Blender addon provides a set of tools for editing vertex normals. As seen i
 
 ### **User Interface** ###
 
-Y.A.V.N.E. is available within the **3D View > Tool Shelf > Shading/UVs** tab for any mesh object in Edit mode.
+Y.A.V.N.E. is available within the **3D View > Sidebar > Tools** tab for any mesh object in Edit mode.
 
-![ui](https://cloud.githubusercontent.com/assets/8960984/13382123/e2e19548-de29-11e5-9cb3-dce88b35c720.png)
+![location-2 80](https://user-images.githubusercontent.com/8960984/59981867-226b5200-95c7-11e9-86a3-2809ad02e8a0.png)
 
 ### **Vertex Normal Weight** ###
 
@@ -72,6 +72,10 @@ It is necessary to recalculate vertex normals after making changes to geometry. 
 ![update_options](https://user-images.githubusercontent.com/8960984/49330829-6f1b0d00-f551-11e8-91fa-01b4dd8e77c8.png)
 
 ### **Version History** ###
+
+2.0.0
+
+ * Updated to support Blender 2.80
 
 1.9.2
 

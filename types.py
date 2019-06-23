@@ -15,21 +15,25 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-
 import bpy
-from ctypes import Structure, c_double
-from enum import Enum
-from .utils import get_linked_faces
+import ctypes
+import enum
+from . import utils
 
 
-class Vec3(Structure):
+class Vec3(ctypes.Structure):
     '''
     Represents a 3-dimensional vector as a ctype struct
     '''
-    _fields_ = [('x', c_double), ('y', c_double), ('z', c_double)]
+    _fields_ = [
+        ('x', ctypes.c_double),
+        ('y', ctypes.c_double),
+        ('z', ctypes.c_double)
+    ]
 
 
-class FaceNormalInfluence(Enum):
+@enum.unique
+class FaceNormalInfluence(enum.Enum):
     '''
     Defines the set of face normal influence values
     '''
@@ -78,7 +82,8 @@ class FaceNormalInfluence(Enum):
         )
 
 
-class VertexNormalWeight(Enum):
+@enum.unique
+class VertexNormalWeight(enum.Enum):
     '''
     Defines the set of vertex normal weight values
     '''
@@ -229,7 +234,7 @@ class LinkedFaceAreaCache(Cache):
         Returns:
             float: Linked face area
         '''
-        linked_faces = get_linked_faces(face, self._angle)
+        linked_faces = utils.get_linked_faces(face, self._angle)
         linked_face_area = sum(f.calc_area() for f in linked_faces)
         for f in linked_faces:
             self._cache[(f, *args)] = linked_face_area

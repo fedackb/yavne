@@ -15,14 +15,15 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
+import logging
 
 bl_info = {
     'name' : 'Y.A.V.N.E.',
     'description' : 'Yet another vertex normal editor',
     'location' : '3D View > Tool Shelf > Shading/UVs',
     'author' : 'Brett Fedack',
-    'version' : (1, 9, 2),
-    'blender' : (2, 79, 0),
+    'version' : (2, 0, 0),
+    'blender' : (2, 80, 0),
     'category' : 'Mesh'
 }
 
@@ -37,8 +38,43 @@ else:
     imp.reload(panel)
     imp.reload(preferences)
 
+classes = (
+    operators.MESH_OT_YAVNEBase,
+    operators.MESH_OT_GetNormalVector,
+    operators.MESH_OT_ManageFaceNormalInfluence,
+    operators.MESH_OT_ManageVertexNormalWeight,
+    operators.MESH_OT_MergeVertexNormals,
+    operators.MESH_OT_PickShadingSource,
+    operators.MESH_OT_SetNormalVector,
+    operators.MESH_OT_TransferShading,
+    operators.MESH_OT_UpdateVertexNormals,
+    panel.MESH_PT_YAVNEPanel,
+    preferences.YAVNEPrefs
+)
+
+
 def register():
-    bpy.utils.register_module(__name__)
+
+    # Configure the logging service.
+    logging_format = (
+        '[%(levelname)s] ' +
+        '(%(asctime)s) ' +
+        '{0}.%(module)s.%(funcName)s():L%(lineno)s'.format(__package__) +
+        ' - %(message)s'
+    )
+    logging.basicConfig(
+        level = logging.DEBUG,
+        format = logging_format,
+        datefmt = '%Y/%m/%d %H:%M:%S'
+    )
+
+    # Register this Blender addon.
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
 
 def unregister():
-    bpy.utils.unregister_module(__name__)
+
+    # Unregister this Blender addon.
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

@@ -15,17 +15,16 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-
 import bpy
 import bmesh
 import math
+import mathutils
 import sys
 from bpy_extras.view3d_utils import (
     region_2d_to_location_3d,
     region_2d_to_origin_3d,
     region_2d_to_vector_3d
 )
-from mathutils import Matrix, Vector
 
 
 def split_loops(vert, angle = math.pi):
@@ -101,17 +100,24 @@ def pick_object(region, rv3d, x, y, near, far, objects):
         (obj, location, normal, index): Reference to picked object and raycast
         hit information; otherwise None
             obj (bpy.types.Object): Nearest object in path of the ray
-            location (Vector): Object space location of ray-face intersection
-            normal (Vector): Normal vector of intersected face
+            location (mathutils.Vector): Object space location of ray-face intersection
+            normal (mathutils.Vector): Normal vector of intersected face
             index (int): Index of intersected face
     '''
     blender_version = bpy.app.version
 
     # Determine ray extents.
-    coord = Vector((x, y))
+    coord = mathutils.Vector((x, y))
     ray_dir = region_2d_to_vector_3d(region, rv3d, coord)
     ray_start = region_2d_to_origin_3d(region, rv3d, coord) + ray_dir * near
     ray_end = ray_start + ray_dir * (far - near)
+
+    # If the view is an orthographic projection, the ray's end may exist in
+    # front of the mesh object. Therefore, it is necessary to move the ray's
+    # end a sufficient distance parallel to the ray's direction to ensure that
+    # the ray potentially intersects the mesh object.
+    if rv3d.view_perspective == 'ORTHO':
+        ray_end += sys.maxsize * ray_dir
 
     # Pick a mesh object underneath given screen coordinates.
     result = None
@@ -128,17 +134,14 @@ def pick_object(region, rv3d, x, y, near, far, objects):
         # Cast ray in object space.
         inverse_model_matrix = obj.matrix_world.inverted()
         hit =  obj.ray_cast(
-            inverse_model_matrix * ray_start,
-            inverse_model_matrix * ray_end
+            inverse_model_matrix @ ray_start,
+            inverse_model_matrix @ ray_end
         )
-        if blender_version < (2, 76, 9):
-            location, normal, index = hit
-        else:
-            location, normal, index = hit[1:]
+        location, normal, index = hit[1:]
 
         # Compare intersection distances.
         if index != -1:
-            dist_squared = (obj.matrix_world * location - ray_start).length_squared
+            dist_squared = (obj.matrix_world @ location - ray_start).length_squared
 
             # Record closer of the two hits.
             if dist_squared < min_dist_squared:
@@ -167,10 +170,10 @@ def loop_space_transform(loop, v, reverse = False):
     bitangent = normal.cross(tangent)
 
     # Transform given vector.
-    m = Matrix((normal, tangent, bitangent))
+    m = mathutils.Matrix((normal, tangent, bitangent))
     if reverse:
         m.transpose()
-    v = m * v
+    v = m @ v
 
     return v
 

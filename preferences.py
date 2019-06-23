@@ -15,29 +15,27 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-
 import bpy
 import math
-from .types import FaceNormalInfluence, VertexNormalWeight
-
+from . import types
 
 class YAVNEPrefs(bpy.types.AddonPreferences):
     bl_idname = __package__.split('.')[0]
 
-    vertex_normal_weight = VertexNormalWeight.create_property()
+    vertex_normal_weight: types.VertexNormalWeight.create_property()
 
-    face_normal_influence = FaceNormalInfluence.create_property()
+    face_normal_influence: types.FaceNormalInfluence.create_property()
 
-    source = bpy.props.StringProperty(
+    source: bpy.props.StringProperty(
         name = 'Shading Source',
         description = 'Source object from which to transfer interpolated normals'
     )
 
-    available_sources = bpy.props.CollectionProperty(
+    available_sources: bpy.props.CollectionProperty(
         type = bpy.types.PropertyGroup
     )
 
-    normal_buffer = bpy.props.FloatVectorProperty(
+    normal_buffer: bpy.props.FloatVectorProperty(
         name = 'Normal Vector Buffer',
         description = 'Stored world space normal vector',
         step = 1,
@@ -46,7 +44,7 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
         subtype = 'XYZ'
     )
 
-    merge_distance = bpy.props.FloatProperty(
+    merge_distance: bpy.props.FloatProperty(
         name = 'Merge Distance',
         description = 'Maximum allowed distance between merged vertex normals',
         default = 0.0001,
@@ -56,7 +54,7 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
         precision = 4
     )
 
-    merge_unselected = bpy.props.BoolProperty(
+    merge_unselected: bpy.props.BoolProperty(
         name = 'Unselected',
         description = (
             'Unselected vertex normals within given distance of selected ' +
@@ -65,13 +63,13 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
         default = False
     )
 
-    show_update_options = bpy.props.BoolProperty(
+    show_update_options: bpy.props.BoolProperty(
         name = 'Update Options',
         description = 'Show/hide options for updating vertex normals.',
         default = False
     )
 
-    use_linked_face_weights = bpy.props.BoolProperty(
+    use_linked_face_weights: bpy.props.BoolProperty(
         name = 'Linked Face Weights',
         description = (
             'Factor linked face areas into the calculation of face weighted ' +
@@ -80,7 +78,7 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
         default = True
     )
 
-    link_angle = bpy.props.FloatProperty(
+    link_angle: bpy.props.FloatProperty(
         name = 'Link Angle',
         description = (
             'Maximum angle between faces to be considered as linked\n\n' +
@@ -94,13 +92,13 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
         subtype = 'ANGLE'
     )
 
-    use_auto_smooth = bpy.props.BoolProperty(
+    use_auto_smooth: bpy.props.BoolProperty(
         name = 'Auto Smooth',
         description = 'Auto smooth based on angle between faces.',
         default = True
     )
 
-    smooth_angle = bpy.props.FloatProperty(
+    smooth_angle: bpy.props.FloatProperty(
         name = 'Smooth Angle',
         description = 'Maximum angle between faces to be considered as smooth',
         default = math.radians(89.9),
