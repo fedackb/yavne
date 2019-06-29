@@ -27,13 +27,15 @@ from bpy_extras.view3d_utils import (
 )
 
 
-def split_loops(vert, angle = math.pi):
+def split_loops(vert, angle = math.pi, use_flat_faces = False):
     '''
     Splits vertex linked loops into groups based on edge properties
 
     Parameters:
         vert (bmesh.types.BMVert): Common vertex shared by loops
-        angle (float): Face edge angle threshold in radians
+        angle (float):             Face edge angle threshold in radians
+        use_flat_faces (bool):     Flag controlling if vertex normals are split
+                                   along flat shaded face boundaries
 
     Returns:
         list<list<bmesh.types.BMLoop>>: Grouped loops
@@ -54,7 +56,7 @@ def split_loops(vert, angle = math.pi):
         while (
             loop_next in link_loops and
             loop_curr.edge.is_manifold and
-            is_edge_smooth(loop_curr.edge) and
+            is_edge_smooth(loop_curr.edge, use_flat_faces) and
             loop_curr.edge.calc_face_angle() <= angle
         ):
             # Transfer next loop to the subgroup.
@@ -71,7 +73,7 @@ def split_loops(vert, angle = math.pi):
         while (
             loop_prev in link_loops and
             loop_prev.edge.is_manifold and
-            is_edge_smooth(loop_prev.edge) and
+            is_edge_smooth(loop_prev.edge, use_flat_faces) and
             loop_prev.edge.calc_face_angle() <= angle
         ):
             # Transfer previous loop to the subgroup.
@@ -204,12 +206,14 @@ def get_num_procs():
     return result
 
 
-def is_edge_smooth(edge):
+def is_edge_smooth(edge, use_flat_faces = False):
     '''
     Determines if the given edge is smooth for shading purposes
 
     Parameters:
         edge (bmesh.types.BMEdge): Edge to evaluate
+        use_flat_faces(bool):      Flag controlling if edges along flat shaded
+                                   face boundaries are considered smooth
 
     Returns:
         bool: True if edge is smooth; False otherwise
@@ -218,7 +222,7 @@ def is_edge_smooth(edge):
     result = edge.smooth
 
     # Infer edge smoothness from linked faces.
-    if result:
+    if result and use_flat_faces:
         for f in edge.link_faces:
             if not f.smooth:
                 result = False

@@ -58,14 +58,14 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
         name = 'Unselected',
         description = (
             'Unselected vertex normals within given distance of selected ' +
-            'vertices are also merged.'
+            'vertices are also merged'
         ),
         default = False
     )
 
     show_update_options: bpy.props.BoolProperty(
         name = 'Update Options',
-        description = 'Show/hide options for updating vertex normals.',
+        description = 'Show/hide options for updating vertex normals',
         default = False
     )
 
@@ -73,7 +73,7 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
         name = 'Linked Face Weights',
         description = (
             'Factor linked face areas into the calculation of face weighted ' +
-            'vertex normals.'
+            'vertex normals'
         ),
         default = True
     )
@@ -82,7 +82,7 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
         name = 'Link Angle',
         description = (
             'Maximum angle between faces to be considered as linked\n\n' +
-            'e.g. Coplanar faces have a link angle of zero degrees.'
+            'e.g. Coplanar faces have a link angle of zero degrees'
         ),
         default = math.radians(2.0),
         min = 0.0,
@@ -94,7 +94,7 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
 
     use_auto_smooth: bpy.props.BoolProperty(
         name = 'Auto Smooth',
-        description = 'Auto smooth based on angle between faces.',
+        description = 'Auto smooth based on angle between faces',
         default = True
     )
 
@@ -107,4 +107,10 @@ class YAVNEPrefs(bpy.types.AddonPreferences):
         step = 10,
         precision = 1,
         subtype = 'ANGLE'
+    )
+
+    use_flat_faces: bpy.props.BoolProperty(
+        name = 'Flat Face Shading',
+        description = 'Preserves shading discontinuities caused by flat faces',
+        default = False
     )

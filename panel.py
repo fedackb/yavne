@@ -199,3 +199,5 @@ class MESH_PT_YAVNEPanel(bpy.types.Panel):
 
             row.prop(addon_props, 'smooth_angle')
             row.active = addon_props.use_auto_smooth
+
+            box.prop(addon_props, 'use_flat_faces')

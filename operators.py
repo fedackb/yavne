@@ -780,7 +780,8 @@ class MESH_OT_UpdateVertexNormals(MESH_OT_YAVNEBase):
             vertex_normal_weight = v[vertex_normal_weight_layer]
 
             # Split vertex linked loops into shading groups.
-            for loop_group in utils.split_loops(v, smooth_angle):
+            for loop_group in utils.split_loops(
+                v, smooth_angle, self.addon.preferences.use_flat_faces):
 
                 # Determine which face type most influences this vertex.
                 influence_max = max((

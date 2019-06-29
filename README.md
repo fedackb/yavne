@@ -4,6 +4,13 @@ This Blender addon provides a set of tools for editing vertex normals. As seen i
 
 ![yavne](https://cloud.githubusercontent.com/assets/8960984/13205008/723b6f74-d89a-11e5-8e46-2e85e79caf6f.png)
 
+### **Download** ###
+
+Select one of the following links depending on the version of Blender that you are using:
+
+* [Blender 2.80+](https://github.com/fedackb/yavne/archive/master.zip)
+* [Blender 2.79](https://github.com/fedackb/yavne/archive/2.79.zip)
+
 ### **User Interface** ###
 
 Y.A.V.N.E. is available within the **3D View > Sidebar > Tools** tab for any mesh object in Edit mode.
@@ -63,7 +70,7 @@ One scenario in which this tool might be useful is when a user wants to add deta
 
 ### **Update Vertex Normals** ##
 
-It is necessary to recalculate vertex normals after making changes to geometry. Two options are available for adjusting how the calculation is performed.
+It is necessary to recalculate vertex normals after making changes to geometry. Options are available for adjusting how the calculation is performed.
 
 **Linked Face Weights** factor the areas of adjacent faces into the calculation of face weighted vertex normals. For instance, all coplanar face areas are summed when this option is enabled and the corresponding link angle is set to zero degrees.
 
@@ -71,7 +78,13 @@ It is necessary to recalculate vertex normals after making changes to geometry. 
 
 ![update_options](https://user-images.githubusercontent.com/8960984/49330829-6f1b0d00-f551-11e8-91fa-01b4dd8e77c8.png)
 
+**Flat Face Shading** preserves shading discontinuities caused by flat faces.
+
 ### **Version History** ###
+
+2.0.1
+
+ * Exposed flat face shading as an option
 
 2.0.0
 
