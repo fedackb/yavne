@@ -847,10 +847,11 @@ class MESH_OT_UpdateVertexNormals(MESH_OT_YAVNEBase):
         bm.verts.ensure_lookup_table()
         split_normals = multiprocessing.sharedctypes.Array(
             types.Vec3, len(mesh.loops), lock = False)
-
+        
         # Execute in parallel for large datasets if supported by the system.
         if len(bm.verts) > 5000 and not os.name == 'nt':
-
+            # Import the Process class (!)
+            from multiprocessing import Process
             # Create a team of worker processes.
             num_procs = utils.get_num_procs()
             for i in range(num_procs):
