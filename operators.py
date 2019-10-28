@@ -22,6 +22,7 @@ import gpu
 import gpu_extras.batch
 import math
 import mathutils
+import multiprocessing
 import multiprocessing.sharedctypes
 import os
 from . import types
@@ -854,7 +855,7 @@ class MESH_OT_UpdateVertexNormals(MESH_OT_YAVNEBase):
             # Create a team of worker processes.
             num_procs = utils.get_num_procs()
             for i in range(num_procs):
-                self.procs.append(Process(
+                self.procs.append(multiprocessing.Process(
                     target = self.worker,
                     args = (bm, split_normals, i, num_procs)
                 ))
