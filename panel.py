@@ -23,7 +23,7 @@ class MESH_PT_YAVNEPanel(bpy.types.Panel):
     bl_label = 'Y.A.V.N.E.'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Tool'
+    bl_category = 'Extended Tools'
 
     addon_key = __package__.split('.')[0]
 
