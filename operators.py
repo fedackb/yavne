@@ -850,7 +850,7 @@ class MESH_OT_UpdateVertexNormals(MESH_OT_YAVNEBase):
             types.Vec3, len(mesh.loops), lock = False)
 
         # Execute in parallel for large datasets if supported by the system.
-        if len(bm.verts) > 5000 and not os.name == 'nt':
+        if len(bm.verts) > 5000 and os.name not in {'nt', 'posix'}:
 
             # Create a team of worker processes.
             num_procs = utils.get_num_procs()
