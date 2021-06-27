@@ -82,6 +82,11 @@ It is necessary to recalculate vertex normals after making changes to geometry. 
 
 ### **Version History** ###
 
+2.0.3
+
+ * Disabled multiprocessing for POSIX OS
+ * Moved UI from "Tool" to "Extended Tools" in sidebar
+
 2.0.1
 
  * Exposed flat face shading as an option
