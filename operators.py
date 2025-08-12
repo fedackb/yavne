@@ -15,21 +15,21 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bmesh
 import bpy
-import ctypes
-import gpu
-import gpu_extras.batch
-import math
+import bmesh
 import mathutils
 import multiprocessing
 import multiprocessing.sharedctypes
 import os
+import gpu
+import gpu_extras.batch
 from . import types
 from . import utils
 
-
 class MESH_OT_YAVNEBase(bpy.types.Operator):
+    """
+    Base class for YAVNE operators. Ensures custom data layers for vertices, faces, and loops.
+    """
     bl_idname = 'mesh.yavne_base'
     bl_label = 'YAVNE Base Operator'
     bl_options = {'INTERNAL'}
@@ -38,15 +38,28 @@ class MESH_OT_YAVNEBase(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        # An active mesh object in Edit mode is required, and the operator is
-        # only valid in 'VIEW_3D' space.
+        """
+        Ensure the operator is executed in an appropriate context.
+        An active mesh object in Edit mode is required, and the operator is only valid in 'VIEW_3D' space.
+        """
         edit_object = context.edit_object
         return (edit_object and
                 edit_object.type == 'MESH' and
                 edit_object.mode == 'EDIT' and
                 context.space_data.type == 'VIEW_3D')
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize the operator and ensure custom data layers exist.
+        """
+        super().__init__(*args, **kwargs)
+        self.addon = None
+        self.ensure_custom_layers()
+
+    def ensure_custom_layers(self):
+        """
+        Ensure necessary custom data layers exist for vertices, faces, and loops.
+        """
         mesh = bpy.context.edit_object.data
         bm = bmesh.from_edit_mesh(mesh)
         vert_int_layers = bm.verts.layers.int
@@ -57,26 +70,30 @@ class MESH_OT_YAVNEBase(bpy.types.Operator):
         self.addon = bpy.context.preferences.addons[self.addon_key]
 
         # Ensure that the 'vertex-normal-weight' custom data layer exists.
-        if not 'vertex-normal-weight' in vert_int_layers.keys():
+        if 'vertex-normal-weight' not in vert_int_layers.keys():
             vert_int_layers.new('vertex-normal-weight')
 
         # Ensure that the 'face-normal-influence' custom data layer exists.
-        if not 'face-normal-influence' in face_int_layers.keys():
+        if 'face-normal-influence' not in face_int_layers.keys():
             face_int_layers.new('face-normal-influence')
 
         # Ensure that loop-space normal custom data layers exist.
-        if not 'loop-normal-x' in loop_float_layers.keys():
+        if 'loop-normal-x' not in loop_float_layers.keys():
             loop_float_layers.new('loop-normal-x')
-        if not 'loop-normal-y' in loop_float_layers.keys():
+        if 'loop-normal-y' not in loop_float_layers.keys():
             loop_float_layers.new('loop-normal-y')
-        if not 'loop-normal-z' in loop_float_layers.keys():
+        if 'loop-normal-z' not in loop_float_layers.keys():
             loop_float_layers.new('loop-normal-z')
 
         # Update the mesh.
-        bmesh.update_edit_mesh(mesh)
+        bmesh.update_edit_mesh(mesh, loop_triangles=False, destructive=False)
 
 
 class MESH_OT_ManageVertexNormalWeight(MESH_OT_YAVNEBase):
+    """
+    Operator for managing vertex normal weight.
+    Allows selection or assignment of vertex normal weight to selected vertices.
+    """
     bl_idname = 'mesh.yavne_manage_vertex_normal_weight'
     bl_label = 'Manage Vertex Normal Weight'
     bl_description = (
@@ -86,10 +103,10 @@ class MESH_OT_ManageVertexNormalWeight(MESH_OT_YAVNEBase):
     bl_options = {'UNDO'}
 
     action: bpy.props.EnumProperty(
-        name = 'Operator Action (Get or Set)',
-        description = '',
-        default = 'GET',
-        items = [
+        name='Operator Action (Get or Set)',
+        description='Action to either get or set the vertex normal weight.',
+        default='GET',
+        items=[
             ('GET', 'Get', 'Selects vertices by given vertex normal weight', '', 0),
             ('SET', 'Set', 'Assigns given vertex normal weight to selected vertices', '', 1)
         ]
@@ -98,12 +115,15 @@ class MESH_OT_ManageVertexNormalWeight(MESH_OT_YAVNEBase):
     type: types.VertexNormalWeight.create_property()
 
     update: bpy.props.BoolProperty(
-        name = 'Update Vertex Normals',
-        description = 'Update vertex normals at the end of a "Set" action.',
-        default = True
+        name='Update Vertex Normals',
+        description='Update vertex normals at the end of a "Set" action.',
+        default=True
     )
 
     def execute(self, context):
+        """
+        Execute the operator to get or set vertex normal weight.
+        """
         edit_object = context.edit_object
         edit_object.update_from_editmode()
         mesh = edit_object.data
@@ -118,10 +138,12 @@ class MESH_OT_ManageVertexNormalWeight(MESH_OT_YAVNEBase):
 
         # Select vertices by given vertex normal weight.
         if self.action == 'GET':
+
             context.tool_settings.mesh_select_mode = (True, False, False)
             for v in bm.verts:
                 if v[vertex_normal_weight_layer] == vertex_normal_weight:
                     v.select = True
+
                 else:
                     v.select = False
             bm.select_mode = {'VERT'}
@@ -129,24 +151,26 @@ class MESH_OT_ManageVertexNormalWeight(MESH_OT_YAVNEBase):
 
         # Assign given vertex normal weight to selected vertices.
         elif self.action == 'SET':
+
             selected_verts = [v for v in bm.verts if v.select]
             for v in selected_verts:
                 v[vertex_normal_weight_layer] = vertex_normal_weight
 
+
             #  Set unweighted vertex normal component values.
             if self.type == 'UNWEIGHTED':
-                mesh.calc_normals_split()
+                bm.normal_update()
                 for v in selected_verts:
                     for loop in v.link_loops:
-                        vn_local = mesh.loops[loop.index].normal
+                        vn_local = loop.calc_normal()
                         vn_loop = utils.loop_space_transform(loop, vn_local)
                         loop[loop_normal_x_layer] = vn_loop.x
                         loop[loop_normal_y_layer] = vn_loop.y
                         loop[loop_normal_z_layer] = vn_loop.z
-                mesh.free_normals_split()
+
 
         # Update the mesh.
-        bmesh.update_edit_mesh(mesh)
+        bmesh.update_edit_mesh(mesh, loop_triangles=False, destructive=False)
         if self.action == 'SET' and self.update:
             bpy.ops.mesh.yavne_update_vertex_normals()
 
@@ -154,6 +178,10 @@ class MESH_OT_ManageVertexNormalWeight(MESH_OT_YAVNEBase):
 
 
 class MESH_OT_ManageFaceNormalInfluence(MESH_OT_YAVNEBase):
+    """
+    Operator for managing face normal influence.
+    Allows selection or assignment of normal vector influence to selected faces.
+    """
     bl_idname = 'mesh.yavne_manage_face_normal_influence'
     bl_label = 'Manage Face Normal Influence'
     bl_description = (
@@ -163,10 +191,10 @@ class MESH_OT_ManageFaceNormalInfluence(MESH_OT_YAVNEBase):
     bl_options = {'UNDO'}
 
     action: bpy.props.EnumProperty(
-        name = 'Operator Action (Get or Set)',
-        description = '',
-        default = 'GET',
-        items = [
+        name='Operator Action (Get or Set)',
+        description='Action to either get or set the face normal influence.',
+        default='GET',
+        items=[
             ('GET', 'Get', 'Selects faces by given normal vector influence', '', 0),
             ('SET', 'Set', 'Assigns given normal vector influence to selected faces', '', 1)
         ]
@@ -175,12 +203,15 @@ class MESH_OT_ManageFaceNormalInfluence(MESH_OT_YAVNEBase):
     type: types.FaceNormalInfluence.create_property()
 
     update: bpy.props.BoolProperty(
-        name = 'Update Vertex Normals',
-        description = 'Update vertex normals at the end of a "Set" action.',
-        default = True
+        name='Update Vertex Normals',
+        description='Update vertex normals at the end of a "Set" action.',
+        default=True
     )
 
     def execute(self, context):
+        """
+        Execute the operator to get or set face normal influence.
+        """
         mesh = bpy.context.edit_object.data
         bm = bmesh.from_edit_mesh(mesh)
         face_normal_influence_layer = bm.faces.layers.int['face-normal-influence']
@@ -190,10 +221,12 @@ class MESH_OT_ManageFaceNormalInfluence(MESH_OT_YAVNEBase):
 
         # Select faces by given normal vector influence.
         if self.action == 'GET':
+
             context.tool_settings.mesh_select_mode = (False, False, True)
             for f in bm.faces:
                 if f[face_normal_influence_layer] == face_normal_influence:
                     f.select = True
+
                 else:
                     f.select = False
             bm.select_mode = {'FACE'}
@@ -201,12 +234,14 @@ class MESH_OT_ManageFaceNormalInfluence(MESH_OT_YAVNEBase):
 
         # Assign given face normal influence to selected faces.
         elif self.action == 'SET' and mesh.total_face_sel:
+
             selected_faces = [f for f in bm.faces if f.select]
             for f in selected_faces:
                 f[face_normal_influence_layer] = face_normal_influence
 
+
         # Update the mesh.
-        bmesh.update_edit_mesh(mesh)
+        bmesh.update_edit_mesh(mesh, loop_triangles=False, destructive=False)
         if self.action == 'SET' and self.update:
             bpy.ops.mesh.yavne_update_vertex_normals()
 
@@ -214,19 +249,25 @@ class MESH_OT_ManageFaceNormalInfluence(MESH_OT_YAVNEBase):
 
 
 class MESH_OT_PickShadingSource(MESH_OT_YAVNEBase):
+    """
+    Operator to pick an object as the shading source for transferring interpolated normals.
+    """
     bl_idname = 'view3d.yavne_pick_shading_source'
     bl_label = 'Pick Shading Source'
     bl_description = 'Pick object from which to transfer interpolated normals.'
     bl_options = set()
 
     def execute(self, context):
+        """
+        Execute the operator to pick a shading source.
+        """
         edit_object = context.edit_object
         scene = context.scene
 
         # Exit Edit mode, if necessary.
         self.initially_in_edit_mode = context.mode == 'EDIT_MESH'
         if self.initially_in_edit_mode:
-            bpy.ops.object.mode_set(mode = 'OBJECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
 
         # Populate a list of objects that are valid as shading sources.
         self.available_sources = [
@@ -256,6 +297,9 @@ class MESH_OT_PickShadingSource(MESH_OT_YAVNEBase):
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
+        """
+        Handle modal events for picking a shading source.
+        """
         context.area.tag_redraw()
 
         if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
@@ -289,31 +333,43 @@ class MESH_OT_PickShadingSource(MESH_OT_YAVNEBase):
         return {'RUNNING_MODAL'}
 
     def finish(self, context):
-        # Reveal  temporarily hidden objects.
+        """
+        Finalize the operator and restore hidden objects and Edit mode if necessary.
+        """
+        # Reveal temporarily hidden objects.
         for obj in self.temporarily_hidden_objects:
             obj.hide_viewport = False
 
         # Return to Edit mode, if necessary.
         if self.initially_in_edit_mode:
-            bpy.ops.object.mode_set(mode = 'EDIT')
+            bpy.ops.object.mode_set(mode='EDIT')
 
-        # Restore  active area's header to its initial state.
-        context.area.header_text_set(text = None)
+        # Restore the active area's header to its initial state.
+        context.area.header_text_set(text=None)
 
 
 class MESH_OT_GetNormalVector(MESH_OT_YAVNEBase):
+    """
+    Operator to copy selected face or vertex normal vector to a buffer.
+    """
     bl_idname = 'mesh.yavne_get_normal_vector'
     bl_label = 'Get Normal Vector'
     bl_description = 'Copy selected face/vertex normal vector to a buffer.'
 
     @classmethod
     def poll(cls, context):
-        # Exactly one vertex or face must be selected.
+        """
+        Ensure the operator is executed in an appropriate context.
+        Exactly one vertex or face must be selected.
+        """
         mesh = context.edit_object.data
         return (super().poll(context) and
                 (mesh.total_vert_sel == 1 or mesh.total_face_sel == 1))
 
     def execute(self, context):
+        """
+        Execute the operator to get the normal vector of the selected face or vertex.
+        """
         mesh = context.edit_object.data
         if mesh.total_face_sel == 1:
             return self.get_face_normal(context)
@@ -323,6 +379,9 @@ class MESH_OT_GetNormalVector(MESH_OT_YAVNEBase):
             return {'CANCELLED'}
 
     def modal(self, context, event):
+        """
+        Handle modal events for selecting vertex normal vectors.
+        """
         context.area.tag_redraw()
         self.show_usage(context)
 
@@ -348,6 +407,9 @@ class MESH_OT_GetNormalVector(MESH_OT_YAVNEBase):
         return {'RUNNING_MODAL'}
 
     def get_face_normal(self, context):
+        """
+        Get the normal vector of the selected face.
+        """
         edit_object = context.edit_object
         mesh = edit_object.data
         model_matrix = edit_object.matrix_world
@@ -360,14 +422,17 @@ class MESH_OT_GetNormalVector(MESH_OT_YAVNEBase):
         vn_global = model_matrix @ selected_face.normal
         self.addon.preferences.normal_buffer = vn_global
 
+
         return {'FINISHED'}
 
     def get_vertex_normal(self, context):
+        """
+        Get the normal vector of the selected vertex.
+        """
         edit_object = context.edit_object
         edit_object.update_from_editmode()
         model_matrix = edit_object.matrix_world
         mesh = edit_object.data
-        mesh.calc_normals_split()
         bm = bmesh.from_edit_mesh(mesh)
         overlay = context.space_data.overlay
 
@@ -377,12 +442,15 @@ class MESH_OT_GetNormalVector(MESH_OT_YAVNEBase):
 
         # Gather world space normal vectors associated with selected vertex.
         normals = set(
-            (model_matrix @ mesh.loops[loop.index].normal).to_tuple()
+            (model_matrix @ loop.calc_normal()).to_tuple()
             for loop in selected_vert.link_loops
         )
         self.normals = list(normals)
         self.selected_idx = 0
         self.num_normals = len(self.normals)
+
+
+
 
         # Return early if selected vertex is not part of a face.
         if not self.num_normals:
@@ -416,6 +484,9 @@ class MESH_OT_GetNormalVector(MESH_OT_YAVNEBase):
             return {'RUNNING_MODAL'}
 
     def show_usage(self, context):
+        """
+        Display usage instructions in the active area's header.
+        """
         vn_global = self.normals[self.selected_idx]
 
         # Display usage instructions in the active area's header.
@@ -426,11 +497,17 @@ class MESH_OT_GetNormalVector(MESH_OT_YAVNEBase):
         context.area.header_text_set(usage)
 
     def store_vertex_normal(self, context):
-        # Store current vertex normal in property buffer.
+        """
+        Store the current vertex normal in the property buffer.
+        """
         vn_global = mathutils.Vector(self.normals[self.selected_idx])
         self.addon.preferences.normal_buffer = vn_global
 
+
     def finish(self, context):
+        """
+        Finalize the operator and restore hidden vertex normals and Edit mode if necessary.
+        """
         mesh = context.edit_object.data
         overlay = context.space_data.overlay
 
@@ -446,9 +523,12 @@ class MESH_OT_GetNormalVector(MESH_OT_YAVNEBase):
         )
 
         # Restore active area's header to its initial state.
-        context.area.header_text_set(text = None)
+        context.area.header_text_set(text=None)
 
     def post_view_callback(self, context):
+        """
+        Render callback for drawing normal vectors in the viewport.
+        """
         start = self.vertex_co
         normals_length = context.space_data.overlay.normals_length
         view_3d_theme = context.preferences.themes['Default'].view_3d
@@ -464,7 +544,7 @@ class MESH_OT_GetNormalVector(MESH_OT_YAVNEBase):
                 end = start + mathutils.Vector(vn_global) * normals_length
                 coords.append(start.to_tuple())
                 coords.append(end.to_tuple())
-        shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
+        shader = gpu.shader.from_builtin('UNIFORM_COLOR')
         shader.bind()
         shader.uniform_float('color', default_color)
         batch = gpu_extras.batch.batch_for_shader(
@@ -474,7 +554,7 @@ class MESH_OT_GetNormalVector(MESH_OT_YAVNEBase):
         # Highlight selected normal.
         end = start + mathutils.Vector(self.normals[self.selected_idx]) * normals_length
         coords = [start.to_tuple(), end.to_tuple()]
-        shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
+        shader = gpu.shader.from_builtin('UNIFORM_COLOR')
         shader.bind()
         shader.uniform_float('color', highlight_color)
         batch = gpu_extras.batch.batch_for_shader(
@@ -483,6 +563,9 @@ class MESH_OT_GetNormalVector(MESH_OT_YAVNEBase):
 
 
 class MESH_OT_SetNormalVector(MESH_OT_YAVNEBase):
+    """
+    Operator to assign the stored normal vector to selected vertices.
+    """
     bl_idname = 'mesh.yavne_set_normal_vector'
     bl_label = 'Set Normal Vector'
     bl_description = 'Assign stored normal vector to selected vertices.'
@@ -490,12 +573,18 @@ class MESH_OT_SetNormalVector(MESH_OT_YAVNEBase):
 
     @classmethod
     def poll(cls, context):
-        # At least one vertex must be selected.
+        """
+        Ensure the operator is executed in an appropriate context.
+        At least one vertex must be selected.
+        """
         mesh = context.edit_object.data
         return (super().poll(context) and
                 mesh.total_vert_sel > 0)
 
     def execute(self, context):
+        """
+        Execute the operator to set the normal vector of the selected vertices.
+        """
         edit_object = context.edit_object
         mesh = edit_object.data
         bm = bmesh.from_edit_mesh(mesh)
@@ -505,8 +594,10 @@ class MESH_OT_SetNormalVector(MESH_OT_YAVNEBase):
         loop_normal_y_layer = bm.loops.layers.float['loop-normal-y']
         loop_normal_z_layer = bm.loops.layers.float['loop-normal-z']
 
+
+
         # Assign stored world space normal vector to all selected vertices.
-        vn_local = edit_object.matrix_world.inverted() @ normal_buffer
+        vn_local = edit_object.matrix_world.inverted_safe() @ normal_buffer
         for v in [v for v in bm.verts if v.select]:
             v[vertex_normal_weight_layer] = types.VertexNormalWeight.UNWEIGHTED.value
             for loop in v.link_loops:
@@ -515,47 +606,42 @@ class MESH_OT_SetNormalVector(MESH_OT_YAVNEBase):
                 loop[loop_normal_y_layer] = vn_loop.y
                 loop[loop_normal_z_layer] = vn_loop.z
 
+
         # Update the mesh.
         bpy.ops.mesh.yavne_update_vertex_normals()
-        bmesh.update_edit_mesh(mesh)
+        bmesh.update_edit_mesh(mesh, loop_triangles=False, destructive=False)
 
         return {'FINISHED'}
 
-
-class MESH_OT_MergeVertexNormals(MESH_OT_YAVNEBase):
+class MESH_OT_MergeVertexNormals(bpy.types.Operator):
+    """
+    Operator to merge selected vertex normals within a given distance of each other.
+    """
     bl_idname = 'mesh.yavne_merge_vertex_normals'
     bl_label = 'Merge Vertex Normals'
-    bl_description = (
-        'Merge selected vertex normals within given distance of each other.'
-    )
+    bl_description = 'Merge selected vertex normals within given distance of each other.'
     bl_options = {'REGISTER', 'UNDO'}
 
     distance: bpy.props.FloatProperty(
-        name = 'Merge Distance',
-        description = 'Maximum allowed distance between merged vertex normals',
-        default = 0.0001,
-        min = 0.0001
+        name='Merge Distance',
+        description='Maximum allowed distance between merged vertex normals',
+        default=0.0001,
+        min=0.0001
     )
 
     unselected: bpy.props.BoolProperty(
-        name = 'Unselected',
-        description = (
-            'Unselected vertex normals within given distance of selected ' +
-            'vertices are also merged.'
-        ),
-        default = False
+        name='Unselected',
+        description='Unselected vertex normals within given distance of selected vertices are also merged.',
+        default=False
     )
 
     @classmethod
     def poll(cls, context):
-        # At least one vertex must be selected.
-        mesh = context.edit_object.data
-        return (super().poll(context) and
-                mesh.total_vert_sel > 0)
+        obj = context.edit_object
+        return obj and obj.type == 'MESH' and obj.data.total_vert_sel > 0
 
     def execute(self, context):
         edit_object = context.edit_object
-        edit_object.update_from_editmode()
         mesh = edit_object.data
         bm = bmesh.from_edit_mesh(mesh)
         vertex_normal_weight_layer = bm.verts.layers.int['vertex-normal-weight']
@@ -569,62 +655,55 @@ class MESH_OT_MergeVertexNormals(MESH_OT_YAVNEBase):
         selected_verts = set(v for v in bm.verts if v.select)
         for v in (bm.verts if self.unselected else selected_verts):
             v_co = v.co
-            x = v_co.x // self.distance
-            y = v_co.y // self.distance
-            z = v_co.z // self.distance
+            x = int(v_co.x // self.distance)
+            y = int(v_co.y // self.distance)
+            z = int(v_co.z // self.distance)
 
-            # Ensure that the cell exists.
-            if not x in cells:
+            if x not in cells:
                 cells[x] = {}
-            if not y in cells[x]:
+            if y not in cells[x]:
                 cells[x][y] = {}
-            if not z in cells[x][y]:
+            if z not in cells[x][y]:
                 cells[x][y][z] = []
 
-            # Add vertex reference to the cell.
             cells[x][y][z].append(v)
 
         # Merge vertex normals in the vicinity of each selected vertex.
-        mesh.calc_normals_split()
+        bm.normal_update()
+        loop_normals = [0.0] * (len(mesh.loops) * 3)
+        mesh.loops.foreach_get('normal', loop_normals)
         while selected_verts:
             v_curr = selected_verts.pop()
             v_curr_co = v_curr.co
             v_curr_normal_count = len(set(
-                mesh.loops[loop.index].normal.to_tuple()
+                (loop_normals[loop.index * 3], loop_normals[loop.index * 3 + 1], loop_normals[loop.index * 3 + 2])
                 for loop in v_curr.link_loops
             ))
-            x = v_curr_co.x // self.distance
-            y = v_curr_co.y // self.distance
-            z = v_curr_co.z // self.distance
+            x = int(v_curr_co.x // self.distance)
+            y = int(v_curr_co.y // self.distance)
+            z = int(v_curr_co.z // self.distance)
 
-            # Search adjacent cells for vertices.
             nearby_verts = []
             for i in [x - 1, x, x + 1]:
                 for j in [y - 1, y, y + 1]:
                     for k in [z - 1, z, z + 1]:
-
-                        # Add contents of current cell to search results.
                         if i in cells and j in cells[i] and k in cells[i][j]:
                             nearby_verts.extend(cells[i][j][k])
 
-            # Exclude vertices that are outside of given merge distance.
             mergeable_verts = [
-                v
-                for v in nearby_verts
+                v for v in nearby_verts
                 if (v.co - v_curr_co).length_squared <= merge_distance_squared
             ]
 
             # Calculate merged normal.
             vn_local = mathutils.Vector()
             for v in mergeable_verts:
-
-                # Average normals of current vertex.
                 vn = mathutils.Vector()
                 for loop in v.link_loops:
-                    vn += mesh.loops[loop.index].normal
+                    idx = loop.index * 3
+                    vn += mathutils.Vector(loop_normals[idx:idx + 3])
                 vn.normalize()
 
-                # Include current, averaged vertex normal in merged normal.
                 vn_local += vn
             vn_local.normalize()
 
@@ -638,83 +717,134 @@ class MESH_OT_MergeVertexNormals(MESH_OT_YAVNEBase):
                         loop[loop_normal_y_layer] = vn_loop.y
                         loop[loop_normal_z_layer] = vn_loop.z
 
-            # Indicate which selected vertices have been merged.
             local_selection = [v for v in mergeable_verts if v.select]
             selected_verts.difference_update(local_selection)
 
         # Update the mesh.
         bpy.ops.mesh.yavne_update_vertex_normals()
-        bmesh.update_edit_mesh(mesh)
+        bmesh.update_edit_mesh(mesh, loop_triangles=False, destructive=False)
 
         return {'FINISHED'}
 
-
 class MESH_OT_TransferShading(MESH_OT_YAVNEBase):
+    """
+    Operator to transfer interpolated normals from a source object to the nearest points on selected vertices.
+    """
     bl_idname = 'mesh.yavne_transfer_shading'
     bl_label = 'Transfer Shading'
-    bl_description = (
-        'Transfer interpolated normals from source object to nearest, ' +
-        'selected vertices.'
-    )
+    bl_description = 'Transfer interpolated normals from source object to nearest points on selected vertices.'
     bl_options = set()
-
-    @classmethod
-    def poll(cls, context):
-        # The source and target objects must be distinct, and at least one
-        # vertex must be selected from the target object.
-        addon = context.preferences.addons[cls.addon_key]
-        source = addon.preferences.source
-        edit_object = context.edit_object
-        return (super().poll(context) and
-                source and source != edit_object and
-                edit_object.data.total_vert_sel)
 
     def execute(self, context):
         edit_object = context.edit_object
-        mesh = edit_object.data
-        mesh.use_auto_smooth = True
-        modifiers = edit_object.modifiers
-        source = self.addon.preferences.source
+        source_object = bpy.data.objects.get(self.addon.preferences.source)
 
-        # Modifiers can only be applied in Object mode.
-        bpy.ops.object.mode_set(mode = 'OBJECT')
+        if not source_object:
+            self.report({'ERROR'}, "Source object not found.")
+            return {'CANCELLED'}
 
-        # Group selected vertices.
-        selected_vertices = [v.index for v in mesh.vertices if v.select]
-        selected_vertices_group = edit_object.vertex_groups.new(name = 'Selected')
-        selected_vertices_group.add(selected_vertices, 1, 'ADD')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.view_layer.objects.active = edit_object
+        bpy.ops.object.mode_set(mode='EDIT')
 
-        # Add data transfer modifier.
-        data_xfer_modifier = modifiers.new(name = '', type = 'DATA_TRANSFER')
-        data_xfer_modifier.object = bpy.data.objects[source]
-        data_xfer_modifier.use_loop_data = True
-        data_xfer_modifier.data_types_loops = {'CUSTOM_NORMAL'}
-        data_xfer_modifier.loop_mapping = 'POLYINTERP_NEAREST'
+        target_mesh = edit_object.data
+        source_mesh = source_object.data
 
-        # Move data transfer modifier to the top of the stack.
-        while modifiers[0] != data_xfer_modifier:
-            bpy.ops.object.modifier_move_up(modifier = data_xfer_modifier.name)
+        bm_source = bmesh.new()
+        bm_source.from_mesh(source_mesh)
+        bm_source.normal_update()
 
-        # Apply data transfer modifier.
-        bpy.ops.object.modifier_apply(modifier = data_xfer_modifier.name)
+        bm_target = bmesh.from_edit_mesh(target_mesh)
+        bm_target.normal_update()
 
-        # Delete the vertex group.
-        edit_object.vertex_groups.remove(selected_vertices_group)
+        # Ensure lookup tables are created
+        bm_source.verts.ensure_lookup_table()
 
-        # Return to Edit mode.
-        bpy.ops.object.mode_set(mode = 'EDIT')
+        # Define custom loop layers for normals
+        loop_normal_x_layer = bm_target.loops.layers.float.get('loop-normal-x')
+        loop_normal_y_layer = bm_target.loops.layers.float.get('loop-normal-y')
+        loop_normal_z_layer = bm_target.loops.layers.float.get('loop-normal-z')
 
-        # Lock transferred normals.
-        bpy.ops.mesh.yavne_manage_vertex_normal_weight(
-            action = 'SET',
-            type = 'UNWEIGHTED',
-            update = True
-        )
+        if not loop_normal_x_layer:
+            loop_normal_x_layer = bm_target.loops.layers.float.new('loop-normal-x')
+        if not loop_normal_y_layer:
+            loop_normal_y_layer = bm_target.loops.layers.float.new('loop-normal-y')
+        if not loop_normal_z_layer:
+            loop_normal_z_layer = bm_target.loops.layers.float.new('loop-normal-z')
+
+        kd = mathutils.kdtree.KDTree(len(bm_source.verts))
+        
+        # Insert all vertices from the source mesh into the KDTree
+        for vert in bm_source.verts:
+            kd.insert(vert.co, vert.index)
+        kd.balance()
+
+        selected_vertices = [v for v in bm_target.verts if v.select]
+
+        use_interpolation = self.addon.preferences.use_interpolation
+
+        for v_target in selected_vertices:
+            co, index, dist = kd.find(v_target.co)
+            closest_vert = bm_source.verts[index]  # Accessing the vertex by index after ensuring lookup table
+
+            if use_interpolation:
+                # Find the closest face on the source mesh
+                closest_face = None
+                min_distance = float('inf')
+                closest_point = None
+
+                for face in bm_source.faces:
+                    # Calculate the closest point on the triangle
+                    point = mathutils.geometry.intersect_point_tri(
+                        v_target.co, face.verts[0].co, face.verts[1].co, face.verts[2].co)
+                    if point is None:
+                        continue
+                    distance = (v_target.co - point).length
+                    if distance < min_distance:
+                        closest_face = face
+                        min_distance = distance
+                        closest_point = point
+
+                if closest_face is None or closest_point is None:
+                    continue
+
+                # Interpolate the normal based on barycentric coordinates
+                bary_coords = mathutils.geometry.barycentric_transform(
+                    closest_point, 
+                    closest_face.verts[0].co, 
+                    closest_face.verts[1].co, 
+                    closest_face.verts[2].co,
+                    closest_face.loops[0].vert.normal,
+                    closest_face.loops[1].vert.normal,
+                    closest_face.loops[2].vert.normal
+                )
+
+                interpolated_normal = bary_coords.normalized()
+            else:
+                # Direct transfer of the closest vertex's normal
+                interpolated_normal = closest_vert.normal
+
+            # Transform to target local space
+            vn_local = edit_object.matrix_world.inverted_safe() @ (source_object.matrix_world @ interpolated_normal)
+
+            # Apply the normal to target vertex
+            for loop in v_target.link_loops:
+                vn_loop = utils.loop_space_transform(loop, vn_local)
+                loop[loop_normal_x_layer] = vn_loop.x
+                loop[loop_normal_y_layer] = vn_loop.y
+                loop[loop_normal_z_layer] = vn_loop.z
+
+        bpy.ops.mesh.yavne_update_vertex_normals()
+        bmesh.update_edit_mesh(target_mesh, loop_triangles=False, destructive=False)
+
+        bm_source.free()
 
         return {'FINISHED'}
-
-
+         
 class MESH_OT_UpdateVertexNormals(MESH_OT_YAVNEBase):
+    """
+    Operator to recalculate vertex normals based on weights, face normal influences, and sharp edges.
+    """
     bl_idname = 'mesh.yavne_update_vertex_normals'
     bl_label = 'Update Vertex Normals'
     bl_description = (
@@ -723,11 +853,17 @@ class MESH_OT_UpdateVertexNormals(MESH_OT_YAVNEBase):
     )
     bl_options = set()
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize the operator and prepare for multiprocessing if needed.
+        """
+        super().__init__(*args, **kwargs)
         self.procs = []
 
     def __del__(self):
+        """
+        Ensure any lingering processes are terminated upon deletion.
+        """
         if hasattr(super(), '__del__'):
             super().__del__()
 
@@ -737,22 +873,21 @@ class MESH_OT_UpdateVertexNormals(MESH_OT_YAVNEBase):
                 p.terminate()
 
     def worker(self, bm, out, chunk, total):
-        '''
-        Calculates a chunk of split normals data
+        """
+        Worker function to calculate a chunk of split normals data.
 
         Parameters:
             bm (bmesh.types.BMesh): BMesh data
-            out (Array<Vec3>): Output sequence of split normals as ctype structs
+            out (Array[types.Vec3]): Output sequence of split normals as ctype structs
             chunk (int): Chunk of data to process in range [0, total)
             total (int): Total number of chunks
 
         Pre:
-            Output sequence shall be large enough to accommodate all split
-            normals with given chunk of data.
+            Output sequence shall be large enough to accommodate all split normals with given chunk of data.
 
         Post:
             Output sequence is modified.
-        '''
+        """
         face_normal_influence_layer = bm.faces.layers.int['face-normal-influence']
         vertex_normal_weight_layer = bm.verts.layers.int['vertex-normal-weight']
         loop_normal_x_layer = bm.loops.layers.float['loop-normal-x']
@@ -765,11 +900,8 @@ class MESH_OT_UpdateVertexNormals(MESH_OT_YAVNEBase):
         else:
             area_cache = types.FaceAreaCache()
 
-        # Determine the auto smooth angle.
-        if self.addon.preferences.use_auto_smooth:
-            smooth_angle = self.addon.preferences.smooth_angle
-        else:
-            smooth_angle = math.pi
+        # Use the split angle for normal grouping
+        smooth_angle = self.addon.preferences.smooth_angle
 
         # Determine which vertices are within the chunk of data.
         first = int(chunk / total * len(bm.verts))
@@ -829,25 +961,28 @@ class MESH_OT_UpdateVertexNormals(MESH_OT_YAVNEBase):
                     split_normal.x, split_normal.y, split_normal.z = vn_local
 
     def execute(self, context):
+        """
+        Execute the operator to update vertex normals.
+        """
         mesh = context.edit_object.data
         overlay = context.space_data.overlay
 
         # Split normal data can only be written from Object mode.
-        bpy.ops.object.mode_set(mode = 'OBJECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
 
         # Initialize BMesh.
         bm = bmesh.new()
         bm.from_mesh(mesh)
 
         # Enable mesh/overlay flags.
-        mesh.use_auto_smooth = True
+        # In Blender 4.5+ auto smooth is automatic with custom normals
         overlay.show_edge_sharp = True
 
         # Prepare the mesh to be processed.
-        mesh.calc_normals_split()
+        bm.normal_update()
         bm.verts.ensure_lookup_table()
         split_normals = multiprocessing.sharedctypes.Array(
-            types.Vec3, len(mesh.loops), lock = False)
+            types.Vec3, len(mesh.loops), lock=False)
 
         # Execute in parallel for large datasets if supported by the system.
         if len(bm.verts) > 5000 and os.name not in {'nt', 'posix'}:
@@ -856,8 +991,8 @@ class MESH_OT_UpdateVertexNormals(MESH_OT_YAVNEBase):
             num_procs = utils.get_num_procs()
             for i in range(num_procs):
                 self.procs.append(multiprocessing.Process(
-                    target = self.worker,
-                    args = (bm, split_normals, i, num_procs)
+                    target=self.worker,
+                    args=(bm, split_normals, i, num_procs)
                 ))
 
             # Start processes.
@@ -874,11 +1009,11 @@ class MESH_OT_UpdateVertexNormals(MESH_OT_YAVNEBase):
             self.worker(bm, split_normals, 0, 1)
 
         # Write split normal data to the mesh, and return to Edit mode.
+        # Blender 4.5 handles custom normals automatically
         mesh.normals_split_custom_set([(n.x, n.y, n.z) for n in split_normals])
-        bpy.ops.object.mode_set(mode = 'EDIT')
+        bpy.ops.object.mode_set(mode='EDIT')
 
         # Cleanup.
-        mesh.free_normals_split()
         bm.free()
 
         return {'FINISHED'}

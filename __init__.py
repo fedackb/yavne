@@ -22,10 +22,11 @@ bl_info = {
     'description' : 'Yet another vertex normal editor',
     'location' : '3D View > Tool Shelf > Shading/UVs',
     'author' : 'Brett Fedack',
-    'version' : (2, 0, 3),
-    'blender' : (2, 90, 0),
+    'version' : (2, 1, 1), 
+    'blender' : (4, 5, 0), 
     'category' : 'Mesh'
 }
+
 
 if 'bpy' not in locals():
     import bpy
@@ -33,10 +34,10 @@ if 'bpy' not in locals():
     from . import panel
     from . import preferences
 else:
-    import imp
-    imp.reload(operators)
-    imp.reload(panel)
-    imp.reload(preferences)
+    import importlib
+    importlib.reload(operators)
+    importlib.reload(panel)
+    importlib.reload(preferences)
 
 classes = (
     operators.MESH_OT_YAVNEBase,
@@ -54,6 +55,9 @@ classes = (
 
 
 def register():
+    # Verify Blender version
+    if bpy.app.version < (4, 5, 0):
+        raise Exception("Y.A.V.N.E. 2.1+ requires Blender 4.5 or higher")
 
     # Configure the logging service.
     logging_format = (

@@ -17,13 +17,12 @@
 
 import bpy
 
-
 class MESH_PT_YAVNEPanel(bpy.types.Panel):
     bl_idname = 'MESH_PT_yavne'
     bl_label = 'Y.A.V.N.E.'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Extended Tools'
+    bl_category = 'Edit'  # Updated for Blender 4.5+
 
     addon_key = __package__.split('.')[0]
 
@@ -63,34 +62,34 @@ class MESH_PT_YAVNEPanel(bpy.types.Panel):
         overlay = context.space_data.overlay
         view_3d_theme = context.preferences.themes['Default'].view_3d
 
-        row = layout.row(align = True)
+        row = layout.row(align=True)
         row.alignment = 'CENTER'
 
-        row.prop(overlay, 'show_split_normals', text = '', icon = 'NORMALS_VERTEX_FACE')
+        row.prop(overlay, 'show_split_normals', text='', icon='NORMALS_VERTEX_FACE')
 
-        subrow = row.row(align = True)
+        subrow = row.row(align=True)
         subrow.alignment = 'CENTER'
 
-        subrow.prop(view_3d_theme, 'split_normal', text = '')
-        subrow.prop(overlay, 'normals_length', text = 'Size')
+        subrow.prop(view_3d_theme, 'split_normal', text='')
+        subrow.prop(overlay, 'normals_length', text='Size')
         subrow.active = overlay.show_split_normals
 
     def draw_vertex_normal_weight_ui(self, context, layout):
         addon_props = self.addon_props
 
-        col = layout.column(align = True)
+        col = layout.column(align=True)
 
-        col.label(text = 'Vertex Normal Weight:')
+        col.label(text='Vertex Normal Weight:')
 
-        row = col.row(align = True)
+        row = col.row(align=True)
 
-        row.prop(addon_props, 'vertex_normal_weight', text = '')
+        row.prop(addon_props, 'vertex_normal_weight', text='')
 
-        op = row.operator('mesh.yavne_manage_vertex_normal_weight', text = '', icon = 'VERTEXSEL')
+        op = row.operator('mesh.yavne_manage_vertex_normal_weight', text='', icon='VERTEXSEL')
         op.action = 'GET'
         op.type = addon_props.vertex_normal_weight
 
-        op = row.operator('mesh.yavne_manage_vertex_normal_weight', text = '', icon = 'ADD')
+        op = row.operator('mesh.yavne_manage_vertex_normal_weight', text='', icon='ADD')
         op.action = 'SET'
         op.type = addon_props.vertex_normal_weight
         op.update = True
@@ -98,20 +97,20 @@ class MESH_PT_YAVNEPanel(bpy.types.Panel):
     def draw_face_normal_influence_ui(self, context, layout):
         addon_props = self.addon_props
 
-        col = layout.column(align = True)
+        col = layout.column(align=True)
 
         row = col.row()
-        row.label(text = 'Face Normal Influence:')
+        row.label(text='Face Normal Influence:')
 
-        row = col.row(align = True)
+        row = col.row(align=True)
 
-        row.prop(addon_props, 'face_normal_influence', text = '')
+        row.prop(addon_props, 'face_normal_influence', text='')
 
-        op = row.operator('mesh.yavne_manage_face_normal_influence', text = '', icon = 'FACESEL')
+        op = row.operator('mesh.yavne_manage_face_normal_influence', text='', icon='FACESEL')
         op.action = 'GET'
         op.type = addon_props.face_normal_influence
 
-        op = row.operator('mesh.yavne_manage_face_normal_influence', text = '', icon = 'ADD')
+        op = row.operator('mesh.yavne_manage_face_normal_influence', text='', icon='ADD')
         op.action = 'SET'
         op.type = addon_props.face_normal_influence
         op.update = True
@@ -119,32 +118,32 @@ class MESH_PT_YAVNEPanel(bpy.types.Panel):
     def draw_edit_vertex_normals_ui(self, context, layout):
         addon_props = self.addon_props
 
-        col = layout.column(align = True)
-        row = col.row(align = True)
+        col = layout.column(align=True)
+        row = col.row(align=True)
 
-        row.operator('mesh.yavne_get_normal_vector', text = 'Get')
-        row.operator('mesh.yavne_set_normal_vector', text = 'Set')
-        col.prop(addon_props, 'normal_buffer', text = '')
+        row.operator('mesh.yavne_get_normal_vector', text='Get')
+        row.operator('mesh.yavne_set_normal_vector', text='Set')
+        col.prop(addon_props, 'normal_buffer', text='')
 
     def draw_merge_vertex_normals_ui(self, context, layout):
         addon_props = self.addon_props
 
-        col = layout.column(align = True)
-        row = col.row(align = True)
+        col = layout.column(align=True)
+        row = col.row(align=True)
 
-        op = row.operator('mesh.yavne_merge_vertex_normals', text = 'Merge')
+        op = row.operator('mesh.yavne_merge_vertex_normals', text='Merge')
         op.distance = addon_props.merge_distance
         op.unselected = addon_props.merge_unselected
 
-        row.prop(addon_props, 'merge_unselected', text = '', icon = 'PIVOT_ACTIVE')
+        row.prop(addon_props, 'merge_unselected', text='', icon='PIVOT_ACTIVE')
 
-        col.prop(addon_props, 'merge_distance', text = 'Distance')
+        col.prop(addon_props, 'merge_distance', text='Distance')
 
     def draw_transfer_shading_ui(self, context, layout):
         addon_props = self.addon_props
         edit_object = context.edit_object
 
-        col = layout.column(align = True)
+        col = layout.column(align=True)
 
         # Generate a collection of potential shading sources.
         available_sources = addon_props.available_sources
@@ -156,33 +155,38 @@ class MESH_PT_YAVNEPanel(bpy.types.Panel):
 
         # Confirm that the current shading source is still available.
         if (addon_props.source and
-            addon_props.source not in addon_props.available_sources
-        ):
+            addon_props.source not in addon_props.available_sources):
             addon_props.source = ''
 
         col.operator('mesh.yavne_transfer_shading')
 
-        row = col.row(align = True)
-
+        row = col.row(align=True)
+        
+        # First, the prop_search for the shading source
         row.prop_search(
-            addon_props, 'source', addon_props, 'available_sources', text = '',
-            icon = 'OBJECT_DATA'
+            addon_props, 'source', addon_props, 'available_sources', text='',
+            icon='OBJECT_DATA'
         )
-        row.operator('view3d.yavne_pick_shading_source', text = '', icon = 'EYEDROPPER')
+        
+        # Next, the pick shading source button with the eyedropper icon
+        row.operator('view3d.yavne_pick_shading_source', text='', icon='EYEDROPPER')
+        
+        # Finally, the toggle button for the interpolation option with a "+" symbol
+        row.prop(addon_props, 'use_interpolation', text='', icon='ADD')
 
     def draw_update_vertex_normals_ui(self, context, layout):
         addon_props = self.addon_props
 
-        col = layout.column(align = True)
-        row = col.row(align = True)
+        col = layout.column(align=True)
+        row = col.row(align=True)
 
         row.operator('mesh.yavne_update_vertex_normals')
-        row.prop(addon_props, 'show_update_options', text = '', icon = 'PREFERENCES')
+        row.prop(addon_props, 'show_update_options', text='', icon='PREFERENCES')
 
         if addon_props.show_update_options:
             box = col.box()
 
-            col = box.column(align = True)
+            col = box.column(align=True)
 
             col.prop(addon_props, 'use_linked_face_weights')
 
@@ -191,13 +195,9 @@ class MESH_PT_YAVNEPanel(bpy.types.Panel):
             row.prop(addon_props, 'link_angle')
             row.active = addon_props.use_linked_face_weights
 
-            col = box.column(align = True)
+            col = box.column(align=True)
 
-            col.prop(addon_props, 'use_auto_smooth')
-
-            row = col.row()
-
-            row.prop(addon_props, 'smooth_angle')
-            row.active = addon_props.use_auto_smooth
+            # In Blender 4.5+ auto smooth is automatic
+            col.prop(addon_props, 'smooth_angle')
 
             box.prop(addon_props, 'use_flat_faces')
